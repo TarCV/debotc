@@ -27,3 +27,4 @@ jobs:
           command: ./gradlew jar
       - store_artifacts:
           path: build/libs
+          destination: jars
