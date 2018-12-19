@@ -26,9 +26,9 @@ jobs:
           name: Build
           command: ./gradlew shadowJar
       - persist_to_workspace:
-          root: build/libs
+          root: build
           paths:
-            - *
+            - libs
 
   publish:
     docker:
