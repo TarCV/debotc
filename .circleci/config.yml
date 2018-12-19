@@ -33,18 +33,18 @@ jobs:
     - image: cibuilds/github:0.12
     steps:
     - attach_workspace:
-        at: ./artifacts
+        at: ./artifacts/libs
     - run:
         name: "Publish Release on GitHub"
         command: |
-          VERSION=$(ls ./artifacts | cut -c8- | rev | cut -c9- | rev)
-          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/
+          VERSION=$(ls ./artifacts/libs/* | cut -c8- | rev | cut -c9- | rev)
+          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs
 
 workflows:
   version: 2.1
   everything:
     jobs:
       - build
-      - publish
-        requires:
-        - build
+      - publish:
+          requires:
+          - build
