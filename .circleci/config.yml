@@ -29,8 +29,6 @@ jobs:
             - libs
 
   publish:
-    requires:
-    - build
     docker:
     - image: cibuilds/github:0.12
     steps:
@@ -41,3 +39,12 @@ jobs:
         command: |
           VERSION=$(ls ./artifacts | cut -c8- | rev | cut -c9- | rev)
           ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/
+
+workflows:
+  version: 2.1
+  everything:
+    jobs:
+      - build
+      - publish
+        requires:
+        - build
