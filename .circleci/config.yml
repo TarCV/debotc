@@ -4,8 +4,6 @@ jobs:
     working_directory: ~/code
     docker:
       - image: circleci/openjdk:8-jdk-browsers
-    #environment:
-    #  JVM_OPTS:
     steps:
       - checkout
       - restore_cache:
@@ -31,6 +29,8 @@ jobs:
             - libs
 
   publish:
+    requires:
+    - build
     docker:
     - image: cibuilds/github:0.12
     steps:
