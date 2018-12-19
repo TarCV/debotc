@@ -25,6 +25,17 @@ jobs:
       - run:
           name: Build
           command: ./gradlew shadowJar
-      - store_artifacts:
-          path: build/libs
-          destination: jars
+      - persist_to_workspace:
+          root: build/libs
+
+  publish:
+    docker:
+    - image: cibuilds/github:0.12
+    steps:
+    - attach_workspace:
+        at: ./artifacts
+    - run:
+        name: "Publish Release on GitHub"
+        command: |
+          VERSION=$(ls ./artifacts | cut -c8- | rev | cut -c9- | rev)
+          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/
