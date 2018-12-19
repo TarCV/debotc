@@ -1,5 +1,4 @@
 plugins {
-    id 'java'
     id 'application'
     id 'org.jetbrains.kotlin.jvm' version '1.2.51'
 }
@@ -11,6 +10,10 @@ sourceCompatibility = 1.8
 
 repositories {
     mavenCentral()
+}
+
+application {
+    mainClassName = 'com.github.tarcv.zandronum.debotc.Decompiler'
 }
 
 dependencies {
