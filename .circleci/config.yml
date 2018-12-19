@@ -24,7 +24,7 @@ jobs:
           path: build/test-results/test
       - run:
           name: Build
-          command: ./gradlew jar
+          command: ./gradlew shadowJar
       - store_artifacts:
           path: build/libs
           destination: jars

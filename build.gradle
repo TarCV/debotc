@@ -1,6 +1,7 @@
 plugins {
     id 'application'
     id 'org.jetbrains.kotlin.jvm' version '1.2.51'
+    id 'com.github.johnrengelman.shadow' version '4.0.3'
 }
 
 group 'com.github.tarcv.zandronum'
@@ -14,6 +15,11 @@ repositories {
 
 application {
     mainClassName = 'com.github.tarcv.zandronum.debotc.Decompiler'
+}
+jar {
+    manifest {
+        attributes "Main-Class": application.mainClassName
+    }
 }
 
 dependencies {
