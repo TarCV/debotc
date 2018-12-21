@@ -1,405 +1,406 @@
 package com.github.tarcv.zandronum.debotc
 
+import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
+import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder.Companion.createNormalStackArgument
+import com.github.tarcv.zandronum.debotc.StackChangingNode.Companion.consumesNormalStack
+
 enum class DataHeaders(requiredArgs: Int = 0)
 {
     DH_COMMAND(2) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val command: BotCommand = toEnum(args[0])
-            val expectedSecondArg = command.numArgs + command.numStringArgs
-            if (expectedSecondArg != args[1]) {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            val botCommand: BotCommand = toEnum(command.arguments[0])
+            val expectedSecondArg = botCommand.numArgs + botCommand.numStringArgs
+            if (expectedSecondArg != command.arguments[1]) {
                 throw IllegalStateException(
                         "Second arg of DH_COMMAND (num of stack pops) is out of date:" +
-                                " ${args[1]} != $expectedSecondArg for ${command.readableName}")
+                                " ${command.arguments[1]} != $expectedSecondArg for ${botCommand.readableName}")
             }
-            command.print(vmState)
+            return botCommand.createNode()
         }
     },
-    DH_STATEIDX,
-    DH_STATENAME,
-    DH_ONENTER,
-    DH_MAINLOOP,
-    DH_ONEXIT,
-    DH_EVENT,
-    DH_ENDONENTER,
-    DH_ENDMAINLOOP,
-    DH_ENDONEXIT,
-    DH_ENDEVENT,
+    DH_STATEIDX {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_STATENAME {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ONENTER {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_MAINLOOP {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ONEXIT {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_EVENT {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ENDONENTER {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ENDMAINLOOP {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ENDONEXIT {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
+    DH_ENDEVENT {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+    },
     DH_IFGOTO(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg1 = vmState.tryPopIntFromStack()
-            if (arg1.startsWith("(") && arg1.endsWith(")") || !arg1.contains(" ")) {
-                vmState.indentedPrintLn("if $arg1 goto label${args[0]};")
-            } else {
-                vmState.indentedPrintLn("if ($arg1) goto label${args[0]};")
-            }
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return IfGotoNode(createNormalStackArgument(0), command.arguments[0])
         }
     },
     DH_IFNOTGOTO(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg1 = vmState.tryPopIntFromStack()
-            if (arg1.startsWith("(") && arg1.endsWith(")") || !arg1.contains(" ")) {
-                vmState.indentedPrintLn("if (!$arg1) goto label${args[0]};")
-            } else {
-                vmState.indentedPrintLn("if (!($arg1)) goto label${args[0]};")
-            }
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return IfNotGotoNode(createNormalStackArgument(0), command.arguments[0])
         }
     },
     DH_GOTO(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("goto label${args[0]};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return GotoNode(command.arguments[0])
         }
     },
     DH_ORLOGICAL {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 || $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("||", 2)
+            
         }
     },
     DH_ANDLOGICAL {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 && $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("&&", 2)
+            
         }
     },
     DH_ORBITWISE {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 | $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("|", 2)
+            
         }
     },
     DH_EORBITWISE {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 ^ $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("^", 2)
+            
         }
     },
     DH_ANDBITWISE {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 & $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("&", 2)
+            
         }
     },
     DH_EQUALS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 == $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("==", 2)
+            
         }
     },
     DH_NOTEQUALS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 != $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("!=", 2)
+            
         }
     },
     DH_LESSTHAN {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 < $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("<", 2)
+            
         }
     },
     DH_LESSTHANEQUALS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 <= $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("<=", 2)
+            
         }
     },
     DH_GREATERTHAN {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 > $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode(">", 2)
+            
         }
     },
     DH_GREATERTHANEQUALS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 >= $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode(">=", 2)
+            
         }
     },
     DH_NEGATELOGICAL {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg1 = vmState.tryPopIntFromStack()
-            if (arg1.startsWith("(") && arg1.endsWith(")") || !arg1.contains(" ")) {
-                vmState.pushIntAsIs("!$arg1")
-            } else {
-                vmState.pushIntAsIs("(!$arg1)")
-            }
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("!", 1)
         }
     },
     DH_LSHIFT {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 << $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("<<", 2)
+            
         }
     },
     DH_RSHIFT {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 >> $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode(">>", 2)
+            
         }
     },
     DH_ADD {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 + $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("+", 2)
+            
         }
     },
     DH_SUBTRACT {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 - $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("-", 2)
+            
         }
     },
     DH_UNARYMINUS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg1 = vmState.tryPopIntFromStack()
-            if (arg1.startsWith("(") && arg1.endsWith(")") || !arg1.contains(" ")) {
-                vmState.pushIntAsIs("-$arg1")
-            } else {
-                vmState.pushIntAsIs("-($arg1)")
-            }
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("-", 1)
         }
     },
     DH_MULTIPLY {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 * $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("*", 2)
+            
         }
     },
     DH_DIVIDE {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 / $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("/", 2)
+            
         }
     },
     DH_MODULUS {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsIs("($arg1 % $arg2)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return OperatorNode("%", 2)
         }
     },
     DH_PUSHNUMBER {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.pushIntAsIs(args[0])
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return LiteralNode(command.arguments[0].toString(), ADDS_TO_NORMAL_STACK)
         }
     },
     DH_PUSHSTRINGINDEX {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.pushStrAsIs("\"${vmState.strings[args[0]]}\"")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return LiteralNode("\"${vmState.strings[command.arguments[0]]}\"", ADDS_TO_STRING_STACK)
+            
         }
     },
     DH_PUSHGLOBALVAR {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.pushIntAsTemporary("global${args[0]}")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return LiteralNode("global${command.arguments[0]}", ADDS_TO_NORMAL_STACK)
+            
         }
     },
     DH_PUSHLOCALVAR {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.pushIntAsTemporary("local${args[0]}")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return LiteralNode("local${command.arguments[0]}", ADDS_TO_NORMAL_STACK)
+            
         }
     },
     DH_DROPSTACKPOSITION {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return dropFromStack(command, vmState)
         }
     },
-    DH_SCRIPTVARLIST,
-    DH_STRINGLIST,
+    DH_SCRIPTVARLIST {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CommandNode("")
+        }
+    },
+    DH_STRINGLIST {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CommandNode("")
+        }
+    },
     DH_INCGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]}++;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CommandNode("global${command.arguments[0]}++;")
         }
     },
     DH_DECGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]}--;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CommandNode("global${command.arguments[0]}--;")
         }
     },
     DH_ASSIGNGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} = ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} = ${stackArgs[0]};" }
         }
     },
     DH_ADDGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} += ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} += ${stackArgs[0]};" }
         }
     },
     DH_SUBGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} -= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} -= ${stackArgs[0]};" }
         }
     },
     DH_MULGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} *= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} *= ${stackArgs[0]};" }
         }
     },
     DH_DIVGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} /= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} /= ${stackArgs[0]};" }
         }
     },
     DH_MODGLOBALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("global${args[0]} %= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "global${command.arguments[0]} %= ${stackArgs[0]};" }
         }
     },
     DH_INCLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]}++;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]}++;" }
         }
     },
     DH_DECLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]}--;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]}--;" }
         }
     },
     DH_ASSIGNLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} = ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} = ${stackArgs[0]};" }
         }
     },
     DH_ADDLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} += ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} += ${stackArgs[0]};" }
         }
     },
     DH_SUBLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} -= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} -= ${stackArgs[0]};" }
         }
     },
     DH_MULLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} *= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} *= ${stackArgs[0]};" }
         }
     },
     DH_DIVLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} /= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} /= ${stackArgs[0]};" }
         }
     },
     DH_MODLOCALVAR(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("local${args[0]} %= ${vmState.tryPopIntFromStack()};")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]} %= ${stackArgs[0]};" }
         }
     },
     DH_CASEGOTO(2) {
-        override fun print(args: IntArray, vmState: VmState) {
-            if (vmState.previousCommand != DH_CASEGOTO) {
-                vmState.indentedPrintLn("switch (${vmState.tryPopIntFromStack()}) {")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return if (vmState.previousCommand != DH_CASEGOTO) {
+                SwitchAndCaseNode(createNormalStackArgument(0), command.arguments[0].toString(), command.arguments[1])
+            } else {
+                CaseGotoNode(command.arguments[0].toString(), command.arguments[1])
             }
-            vmState.indentedPrintLn("case ${args[0]}: goto label${args[1]};")
         }
     },
     DH_DROP {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("// '${vmState.tryPopIntFromStack()}' dropped from stack")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return dropFromStack(command, vmState)
         }
     },
     DH_INCGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("globalArray${args[0]}[${vmState.tryPopIntFromStack()}]++;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}]++;" }
         }
     },
     DH_DECGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.indentedPrintLn("globalArray${args[0]}[${vmState.tryPopIntFromStack()}]--;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}]--;" }
         }
     },
     DH_ASSIGNGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] = $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] = ${stackArgs[1]};" }
         }
     },
     DH_ADDGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] += $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] += ${stackArgs[1]};" }
         }
     },
     DH_SUBGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] -= $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] -= ${stackArgs[1]};" }
         }
     },
     DH_MULGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] *= $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] *= ${stackArgs[1]};" }
         }
     },
     DH_DIVGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] /= $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] /= ${stackArgs[1]};" }
         }
     },
     DH_MODGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("globalArray${args[0]}[$arg1] %= $arg2;")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}] %= ${stackArgs[1]};" }
         }
     },
     DH_PUSHGLOBALARRAY(1) {
-        override fun print(args: IntArray, vmState: VmState) {
-            vmState.pushIntAsTemporary("globalArray${args[0]}[${vmState.tryPopIntFromStack()}]")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return CustomStackConsumingNode(1, ADDS_TO_NORMAL_STACK) { stackArgs -> "globalArray${command.arguments[0]}[${stackArgs[0]}]" }
         }
     },
     DH_SWAP{
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg2 = vmState.tryPopIntFromStack()
-            val arg1 = vmState.tryPopIntFromStack()
-            vmState.pushIntAsTemporary(arg2)
-            vmState.pushIntAsTemporary(arg1)
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return object : StackChangingNode(
+                    consumesNormalStack(2),
+                    arrayOf(
+                            ReturnPrototype(ADDS_TO_NORMAL_STACK, {arguments -> "${arguments[1]}"}),
+                            ReturnPrototype(ADDS_TO_NORMAL_STACK, {arguments -> "${arguments[0]}"})
+                    )
+            ) {
+                override val asText: String
+                    get() = "(swap last stack items)"
+            }
         }
     },
     DH_DUP{
-        override fun print(args: IntArray, vmState: VmState) {
-            val arg1 = vmState.tryPopIntFromStack()
-            val tempIndex = vmState.tempVarIndex.getAndIncrement()
-            vmState.indentedPrintLn("temp$tempIndex = $arg1;")
-            vmState.pushIntAsTemporary("temp$tempIndex")
-            vmState.pushIntAsTemporary("temp$tempIndex")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return object : StackChangingNode(
+                    consumesNormalStack(1),
+                    arrayOf(
+                            ReturnPrototype(ADDS_TO_NORMAL_STACK, {arguments -> "${arguments[0]}"}),
+                            ReturnPrototype(ADDS_TO_NORMAL_STACK, {arguments -> "${arguments[0]}"})
+                    )
+
+            ) {
+                override val asText: String
+                    get() = "(duplicate stack item)"
+            }
         }
     },
     DH_ARRAYSET{
-        override fun print(args: IntArray, vmState: VmState) {
-            val highestValue = vmState.tryPopIntFromStack()
-            val value = vmState.tryPopIntFromStack()
-            val array = vmState.tryPopIntFromStack()
-            vmState.indentedPrintLn("memset($array, $value, $highestValue)")
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            return FunctionNode("memset", consumesNormalStack(3), DONT_PUSHES_TO_STACK)
         }
     },
 
-    NUM_DATAHEADERS;
+    NUM_DATAHEADERS {
+        override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
+            throw IllegalStateException("Must not be called")
+        }
+    };
 
-    open fun print(args: IntArray, vmState: VmState) {
-    }
+    abstract fun processAndCreateNode(command: Command, vmState: VmState): BaseNode
+}
+
+private fun dropFromStack(command: Command, vmState: VmState): BaseNode {
+    return DropStackNode("// item dropped from stack")
 }

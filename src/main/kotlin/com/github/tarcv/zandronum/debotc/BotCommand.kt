@@ -1,6 +1,10 @@
 package com.github.tarcv.zandronum.debotc
 
 import com.github.tarcv.zandronum.debotc.BotCommandReturnType.*
+import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
+import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder
+import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder.Companion.createStringStackArgument
+import com.github.tarcv.zandronum.debotc.StackChangingNode.Companion.consumesNormalStack
 
 enum class BotCommand(
         val readableName: String,
@@ -8,7 +12,9 @@ enum class BotCommand(
         val numStringArgs: Int,
         val returnType: BotCommandReturnType
 ) {
-    BOTCMD_CHANGESTATE("changestate", 1, 0, RETURNVAL_VOID),
+    BOTCMD_CHANGESTATE("changestate", 1, 0, RETURNVAL_VOID) {
+
+    },
     BOTCMD_DELAY("delay", 1, 0, RETURNVAL_VOID),
     BOTCMD_RAND("Random", 2, 0, RETURNVAL_INT),
     BOTCMD_STRINGSAREEQUAL("StringsAreEqual", 0, 2, RETURNVAL_BOOLEAN),
@@ -104,36 +110,23 @@ enum class BotCommand(
 
     NUM_BOTCMDS("", 0, 0, RETURNVAL_VOID);
 
-    fun print(vmState: VmState) {
-        val args = StringBuilder()
-        for (i in 0 until numArgs) {
-            if (args.isNotEmpty()) args.insert(0, ", ")
-            args.insert(0, vmState.tryPopIntFromStack())
-        }
+    open fun createNode(): FunctionNode {
+        val args = ArrayList<ArgumentHolder>()
+        args.addAll(consumesNormalStack(numArgs))
 
         val stringArgs = StringBuilder()
-        for (i in 0 until numStringArgs) {
+        for (i in numStringArgs - 1 downTo 0) {
             if (stringArgs.isNotEmpty()) stringArgs.insert(0, ", ")
-            stringArgs.insert(0, vmState.tryPopStrFromStack())
+            args.add(createStringStackArgument(i))
         }
 
-        if (stringArgs.isNotEmpty()) {
-            if (args.isNotEmpty()) args.append(", ")
-            args.append(stringArgs)
+        val addsTo = when(returnType) {
+            RETURNVAL_INT, RETURNVAL_BOOLEAN -> ADDS_TO_NORMAL_STACK
+            RETURNVAL_STRING -> ADDS_TO_STRING_STACK
+            RETURNVAL_VOID -> DONT_PUSHES_TO_STACK
         }
 
-        val result = "$readableName($args)"
-        when(returnType) {
-            RETURNVAL_INT, RETURNVAL_BOOLEAN -> {
-                vmState.pushIntAsTemporary(result)
-            }
-            RETURNVAL_STRING -> {
-                vmState.pushStrAsVar(result)
-            }
-            RETURNVAL_VOID -> {
-                vmState.indentedPrintLn("$result;")
-            }
-        }
+        return FunctionNode(readableName, args, addsTo)
     }
 }
 
