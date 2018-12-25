@@ -94,24 +94,32 @@ class CompactTest {
     @Test
     fun testFixingGotos() {
         val rootNode = BeginNode()
-        val gotoTarget = LabelNode(888)
         val gotoNode = GotoNode(888)
-        rootNode
-                .attachNode(gotoNode)
-                .attachNode(LabelNode(777))
-                .attachNode(gotoTarget)
-                .attachNode(LabelNode(999))
-                .attachNode(EndNode())
+        run {
+            val gotoTarget = LabelNode(888)
+            val splitNode = SplitNode(LabelNode(777))
+            rootNode
+                    .attachNode(splitNode)
+                    .attachNode(gotoNode)
+                    .attachNode(splitNode.lastNodeOfSecondBranch)
+                    .attachNode(gotoTarget)
+                    .attachNode(LabelNode(999))
+                    .attachNode(EndNode())
 
-        gotoNode.jumpTargetNode = gotoTarget
+            gotoNode.jumpTargetNode = gotoTarget
+        }
 
         replaceGotoWithEdge(gotoNode)
 
         val expectedStructureRoot = BeginNode()
-        expectedStructureRoot
-                .attachNode(LabelNode(888))
-                .attachNode(LabelNode(999))
-                .attachNode(EndNode())
+        run {
+            val splitNode = SplitNode(LabelNode(777), LabelNode(888))
+            expectedStructureRoot
+                    .attachNode(splitNode)
+                    .attachNode(splitNode.lastNodeOfSecondBranch)
+                    .attachNode(LabelNode(999))
+                    .attachNode(EndNode())
+        }
         assertIsSameStructure(expectedStructureRoot, rootNode)
     }
 
@@ -204,6 +212,20 @@ class CompactTest {
     }
 }
 
+class SplitNode(vararg secondBranchNodes: BaseNode): BaseNode("Split", 2) {
+    val lastNodeOfSecondBranch: BaseNode
+
+    init {
+        outputs[1] = secondBranchNodes[0]
+        secondBranchNodes
+                .drop(1)
+                .fold(outputs[1]) { previousNode, itNode ->
+                    previousNode.attachNode(itNode)
+                }
+        lastNodeOfSecondBranch = secondBranchNodes.last()
+    }
+}
+
 private fun assertIsSameStructure(expectedStructureRoot: BeginNode, rootNode: BeginNode) {
     val traversedNodes = HashSet<BaseNode>()
     assertIsSameStructureInternal(expectedStructureRoot, rootNode, traversedNodes)
@@ -224,11 +246,18 @@ private fun assertIsSameStructureInternal(expectedNode: BaseNode, actualNode: Ba
 private fun assertEqualNodes(expectedNode: BaseNode, actualNode: BaseNode) {
     Assert.assertEquals(expectedNode.javaClass, actualNode.javaClass)
     Assert.assertEquals(expectedNode.asText, actualNode.asText)
-    Assert.assertEquals(listToText(expectedNode.inputs), listToText(actualNode.inputs))
-    Assert.assertEquals(listToText(expectedNode.outputs.copy()), listToText(actualNode.outputs.copy()))
+
+    // Order of inputs is never important
+    Assert.assertEquals("Inputs of ${nodeToDebugString(actualNode)}",
+            listToText(expectedNode.inputs.sortedBy { nodeToDebugString(it) }),
+            listToText(actualNode.inputs.sortedBy { nodeToDebugString(it) }))
+
+    // But order of outputs is always important
+    Assert.assertEquals("Outputs of ${nodeToDebugString(actualNode)}",
+            listToText(expectedNode.outputs.copy()), listToText(actualNode.outputs.copy()))
 }
 
-fun listToText(expectedList: List<BaseNode>): String {
+fun listToText(expectedList: Collection<BaseNode>): String {
     return expectedList.size.toString() + " items: " + expectedList.joinToString { nodeToDebugString(it) }
 }
 
