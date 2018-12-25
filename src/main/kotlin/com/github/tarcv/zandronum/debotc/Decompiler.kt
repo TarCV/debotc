@@ -171,10 +171,10 @@ class Decompiler(
                 changed = true
 
                 val elseBranchText = if (elseBranch != endingLabel) {
-                    " else {${System.lineSeparator()}${elseBranch.asText}${System.lineSeparator()}}"
+                    " else {${System.lineSeparator()}${elseBranch.asText.indent()}${System.lineSeparator()}}"
                 } else ""
                 val text = "if ($condition) {${System.lineSeparator()}" +
-                        "${mainBranch.asText}${System.lineSeparator()}" +
+                        "${mainBranch.asText.indent()}${System.lineSeparator()}" +
                         "}$elseBranchText"
                 val newNode = TextNode(text)
 
@@ -851,12 +851,10 @@ fun recurse(
 }
 
 fun convertNodeToText(nextNode: BaseNode): String {
-    return if (nextNode is LabelNode) {
-        "// ${nextNode.asText}"
-    } else {
-        assert(!nextNode.asText.contains("stack["))
-        nextNode.asText
-    }
+    assert(nextNode !is LabelNode)
+    assert(!nextNode.asText.contains("stack["))
+    assert(nextNode.asText.trim() != ";")
+    return nextNode.asText
 }
 
 fun convertToTextNodes(node: BaseNode): Boolean {
@@ -1020,7 +1018,7 @@ fun packSwitchBlockToText(node: BaseNode): Boolean {
             val cases = nextNode.conditions
                     .mapIndexed { i, groupedConditions ->
                         val conditionLines = groupedConditions.joinToString(System.lineSeparator()) { "case $it:" }
-                        val body = nextNode.jumpTargets[i].asText.replace(Regex("^", MULTILINE), "\t")
+                        val body = nextNode.jumpTargets[i].asText.indent()
                         conditionLines + System.lineSeparator() + body + System.lineSeparator() + "\tbreak;"
                     }
                     .plus(defaultCase)
@@ -1046,3 +1044,6 @@ fun packSwitchBlockToText(node: BaseNode): Boolean {
 
     return changed
 }
+
+private fun String.indent() =
+        replace(Regex("^", MULTILINE), "\t")

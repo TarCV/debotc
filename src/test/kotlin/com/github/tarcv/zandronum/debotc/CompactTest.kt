@@ -46,7 +46,7 @@ class CompactTest {
 
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
-                .attachNode(TextNode("Test command"))
+                .attachNode(TextNode("Test command;"))
                 .attachNode(EndNode())
         assertIsSameStructure(expectedStructureRoot, rootNode)
     }
@@ -65,7 +65,7 @@ class CompactTest {
 
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
-                .attachNode(TextNode("TestCommand1" + System.lineSeparator() + "TestCommand2"))
+                .attachNode(TextNode("TestCommand1;" + System.lineSeparator() + "TestCommand2;"))
                 .attachNode(EndNode())
         assertIsSameStructure(expectedStructureRoot, rootNode)
     }
@@ -197,13 +197,13 @@ class CompactTest {
                 .attachNode(LabelNode(101))
                 .attachNode(TextNode("switch (local1) {\n" +
                         "case 1:\n" +
-                        "\tBranch1\n" +
+                        "\tBranch1;\n" +
                         "\tbreak;\n" +
                         "case 2:\n" +
-                        "\tBranch2\n" +
+                        "\tBranch2;\n" +
                         "\tbreak;\n" +
                         "case 3:\n" +
-                        "\tBranch3\n" +
+                        "\tBranch3;\n" +
                         "\tbreak;\n" +
                         "}"))
                 .attachNode(LabelNode(999))

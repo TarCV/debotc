@@ -151,10 +151,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 class BeginNode: BaseNode("(BEGIN)", 1)
 class EndNode: BaseNode("(END)", 0)
 
-open class CommandNode(asText: String): BaseNode(asText, 1)
-
-/** Inlining across this node is not safe */
-class DangerousCommandNode(asText: String): CommandNode(asText)
+open class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1)
 
 class TextNode(asText: String): BaseNode(asText, 1)
 
@@ -311,9 +308,6 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
 ) {
     constructor(value: String, addsTo: AddsTo) : this(listOf(value to addsTo))
 
-    override val asText: String
-        get() = returnsAsText(this)
-
     companion object {
         const val consumedMarker = "!%**CONSUMED**"
     }
@@ -415,7 +409,16 @@ class FullSwitchNode(
 fun returnsAsText(node: StackChangingNode): String {
     return node.returns()
             .filter { !it.consumed }
-            .joinToString(System.lineSeparator()) {
+            .joinToString(System.lineSeparator(), postfix = ";") {
                 it.addsTo.asText() + it.value
             }
+            .tryAppendSemicolon()
+}
+
+fun String.tryAppendSemicolon(): String {
+    return if (!endsWith(";")) {
+        "$this;"
+    } else {
+        this
+    }
 }
