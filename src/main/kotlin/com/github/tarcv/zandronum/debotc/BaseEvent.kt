@@ -2,9 +2,7 @@ package com.github.tarcv.zandronum.debotc
 
 import java.util.*
 
-abstract class BaseEvent(
-        val position: Int
-) {
+abstract class BaseEvent {
     fun finalize() {
         finalized = true
     }
@@ -13,32 +11,30 @@ abstract class BaseEvent(
         if (finalized) {
             throw IllegalStateException("Unexpected command outside any event")
         }
-        commands_.add(command)
+        _commands.add(command)
     }
 
     abstract val readableType: String
 
-    private val commands_: ArrayList<Command> = ArrayList()
+    private val _commands: ArrayList<Command> = ArrayList()
     val commands: List<Command>
-        get() = Collections.unmodifiableList(commands_)
+        get() = Collections.unmodifiableList(_commands)
 
-    var finalized = false
+    private var finalized = false
         private set
     var varList: Int = 0
 }
 
 class BotEvent(
-        position: Int,
         val eventType: BotEventType
-) : BaseEvent(position) {
+) : BaseEvent() {
     override val readableType: String
         get() = eventType.name.substring("BOTEVENT_".length).toLowerCase()
 }
 
 class WorldEvent(
-        position: Int,
         val eventType: DataHeaders
-) : BaseEvent(position) {
+) : BaseEvent() {
     override val readableType: String
         get() = eventType.name.substring("DH_".length).toLowerCase()
 }

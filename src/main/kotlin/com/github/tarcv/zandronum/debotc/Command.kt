@@ -4,8 +4,8 @@ class Command(
         val positionBefore: Int,
         val positionAfter: Int,
         val type: DataHeaders, vararg args: Int) {
-    fun print(vmState: VmState) {
-        type.print(arguments, vmState)
+    fun processAndCreateNode(vmState: VmState): BaseNode {
+        return type.processAndCreateNode(this, vmState)
     }
 
     val arguments: IntArray = args
