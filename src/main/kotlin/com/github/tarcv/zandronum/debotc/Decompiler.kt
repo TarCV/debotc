@@ -814,7 +814,7 @@ private fun prototypesFromReturns(returns: List<StackChangingNode.Return>): List
     }
 }
 
-private fun optimizeWhile(
+fun optimizeWhile(
         node: BaseNode,
         visitor: (BaseNode) -> Boolean
 ): Boolean {
