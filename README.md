@@ -10,7 +10,7 @@ java -jar debotc-<VERSION>-all.jar <bot lump>
 
 For example:
 ```
-java -jar debotc-0.1-SNAPSHOT-all.jar <bot lump>
+java -jar debotc-0.2-all.jar humanbot.lump
 ```
 
 ## Download
