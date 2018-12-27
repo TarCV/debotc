@@ -113,6 +113,8 @@ class Decompiler {
 
         changed = removeUnusedLabel(node) || changed
 
+        changed = removeUnusedLiterals(node) || changed
+
         changed = packIfBlockToText(node) || changed
 
         changed = packSwitchBlockToText(node) || changed
@@ -796,7 +798,11 @@ fun convertToTextNodes(node: BaseNode): Boolean {
     var changed = false
 
     node.outputs.copy().forEach { nextNode ->
-        if (nextNode.outputs.size == 1 && nextNode !is LabelNode && nextNode !is TextNode) {
+        if (nextNode.outputs.size == 1
+                && nextNode !is LabelNode
+                && nextNode !is TextNode
+                && (nextNode !is LiteralNode || nextNode.returns().any { !it.consumed })
+        ) {
             changed = true
 
             val newNode = TextNode(convertNodeToText(nextNode))
@@ -820,7 +826,10 @@ fun packPairsToTextNodes(node: BaseNode): Boolean {
             changed = true
 
             val nodeAfterNext = nextNode.nextNode
-            if (nodeAfterNext !is LabelNode && nodeAfterNext.inputs.size == 1 && nodeAfterNext.outputs.size == 1) {
+            if (nodeAfterNext !is LabelNode && nodeAfterNext.inputs.size == 1 && nodeAfterNext.outputs.size == 1
+                    && (nextNode !is LiteralNode || nextNode.returns().any { !it.consumed })
+                    && (nodeAfterNext !is LiteralNode || nodeAfterNext.returns().any { !it.consumed })
+            ) {
                 val newNode = TextNode("${convertNodeToText(nextNode)}${System.lineSeparator()}${convertNodeToText(nodeAfterNext)}")
                 newNode.nextNode = nodeAfterNext.nextNode
                 ArrayList(nextNode.inputs).forEach {
@@ -839,6 +848,19 @@ fun removeUnusedLabel(nodeBefore: BaseNode): Boolean {
 
     nodeBefore.outputs.copy().forEach { node ->
         if (node is LabelNode && node !is EndNode && node.inputs.size == 1) {
+            changed = true
+
+            cutNode(node)
+        }
+    }
+    return changed
+}
+
+fun removeUnusedLiterals(nodeBefore: BaseNode): Boolean {
+    var changed = false
+
+    nodeBefore.outputs.copy().forEach { node ->
+        if (node is LiteralNode && node.returns().all { it.consumed }) {
             changed = true
 
             cutNode(node)

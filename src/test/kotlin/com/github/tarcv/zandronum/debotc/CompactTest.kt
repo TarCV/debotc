@@ -3,6 +3,7 @@ package com.github.tarcv.zandronum.debotc
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.ADDS_TO_NORMAL_STACK
 import org.junit.Test
+import java.util.Arrays.asList
 
 class CompactTest {
     @Test
@@ -91,6 +92,57 @@ class CompactTest {
     }
 
     @Test
+    fun testDeletingUnusedLiterals() {
+        val rootNode = run {
+            val rootNode = BeginNode()
+            val splitNode1 = SplitNode(
+                    CommandNode("TestCommand2"),
+                    LiteralNode(asList(consumedMarker to ADDS_TO_NORMAL_STACK))
+            )
+            val splitNode2 = SplitNode(
+                    CommandNode("TestCommand4"),
+                    EndNode()
+            )
+            rootNode
+                    .attachNode(splitNode1)
+                    .attachNode(CommandNode("TestCommand1"))
+                    .attachNode(splitNode1.nodeJoiningBothBranches)
+                    .attachNode(splitNode2)
+                    .attachNode(CommandNode("TestCommand3"))
+                    .attachNode(splitNode2.nodeJoiningBothBranches)
+
+            rootNode
+        }
+        optimizeWhileAsserted(rootNode) {
+            node -> removeUnusedLiterals(node)
+        }
+
+        val expectedStructureRoot = run {
+            val rootNode = BeginNode()
+            val splitNode2 = SplitNode(
+                    CommandNode("TestCommand4"),
+                    EndNode()
+            )
+            val splitNode1 = SplitNode(
+                    CommandNode("TestCommand2"),
+                    splitNode2
+            )
+
+
+            rootNode
+                    .attachNode(splitNode1)
+                    .attachNode(CommandNode("TestCommand1"))
+                    .attachNode(splitNode2)
+                    .attachNode(CommandNode("TestCommand3"))
+                    .attachNode(splitNode2.nodeJoiningBothBranches)
+
+            rootNode
+        }
+
+        assertIsSameStructure(expectedStructureRoot, rootNode)
+    }
+
+    @Test
     fun testFixingGotos() {
         val rootNode = BeginNode()
         val gotoNode = GotoNode(888)
@@ -100,7 +152,7 @@ class CompactTest {
             rootNode
                     .attachNode(splitNode)
                     .attachNode(gotoNode)
-                    .attachNode(splitNode.lastNodeOfSecondBranch)
+                    .attachNode(splitNode.nodeJoiningBothBranches)
                     .attachNode(gotoTarget)
                     .attachNode(LabelNode(999))
                     .attachNode(EndNode())
@@ -115,7 +167,7 @@ class CompactTest {
             val splitNode = SplitNode(LabelNode(777), LabelNode(888))
             expectedStructureRoot
                     .attachNode(splitNode)
-                    .attachNode(splitNode.lastNodeOfSecondBranch)
+                    .attachNode(splitNode.nodeJoiningBothBranches)
                     .attachNode(LabelNode(999))
                     .attachNode(EndNode())
         }

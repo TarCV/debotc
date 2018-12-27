@@ -3,7 +3,7 @@ package com.github.tarcv.zandronum.debotc
 import org.junit.Assert
 
 class SplitNode(vararg secondBranchNodes: BaseNode): BaseNode("Split", 2) {
-    val lastNodeOfSecondBranch: BaseNode
+    val nodeJoiningBothBranches: BaseNode
 
     init {
         outputs[1] = secondBranchNodes[0]
@@ -12,7 +12,7 @@ class SplitNode(vararg secondBranchNodes: BaseNode): BaseNode("Split", 2) {
                 .fold(outputs[1]) { previousNode, itNode ->
                     previousNode.attachNode(itNode)
                 }
-        lastNodeOfSecondBranch = secondBranchNodes.last()
+        nodeJoiningBothBranches = secondBranchNodes.last()
     }
 }
 
@@ -67,7 +67,7 @@ fun optimizeWhileAsserted(
 
         val shouldContinue = recurse(rootNode, traversedNodes, visitor)
 
-//        assertInputsAndOutputsDiscoverable(rootNode)
+        assertInputsAndOutputsDiscoverable(rootNode)
 
         wasAtLeastOneChange = wasAtLeastOneChange || shouldContinue
 
