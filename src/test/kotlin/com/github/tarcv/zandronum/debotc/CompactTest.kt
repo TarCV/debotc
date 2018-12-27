@@ -2,7 +2,6 @@ package com.github.tarcv.zandronum.debotc
 
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.ADDS_TO_NORMAL_STACK
-import org.junit.Assert
 import org.junit.Test
 
 class CompactTest {
@@ -191,7 +190,7 @@ class CompactTest {
         assertIsSameStructure(expectedStructureRoot, rootNode)
     }
 
-    fun setupExpectedTextNodeStructure(): BeginNode {
+    private fun setupExpectedTextNodeStructure(): BeginNode {
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
                 .attachNode(LabelNode(101))

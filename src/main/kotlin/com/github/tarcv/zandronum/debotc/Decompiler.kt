@@ -15,15 +15,12 @@ import kotlin.collections.HashSet
 import com.mxgraph.view.mxGraph
 import com.mxgraph.swing.mxGraphComponent
 import com.mxgraph.util.mxEvent
-import java.util.Stack
 import java.util.Arrays.asList
 import javax.swing.JFrame
 import kotlin.text.RegexOption.*
 
 
-class Decompiler(
-        private val optimizing: Boolean = true
-) {
+class Decompiler {
     companion object {
         @JvmStatic fun main(args: Array<String>) {
             if (args.size != 1) {
@@ -38,7 +35,7 @@ class Decompiler(
     }
 
     private fun print() {
-        val tempVarCounter = AtomicInteger()
+        AtomicInteger()
         states.forEach { state ->
             val name = if (state.global) "" else "state ${state.name} "
             val suffix = if (state.global) "" else " // ${state.index}"
@@ -46,7 +43,7 @@ class Decompiler(
             state.events.forEach { event ->
                 println("\tevent ${event.readableType}() {")
 
-                val eventNodes = buildGraphForEvent(tempVarCounter, event)
+                val eventNodes = buildGraphForEvent(event)
                 if (eventNodes.isNotEmpty()) {
                     val currentNode = eventNodes[0]
                     compactAndPrintNodes(currentNode, "State ${state.index} - Event ${event.readableType}",
@@ -215,11 +212,6 @@ class Decompiler(
         return changed
     }
 
-    class CasePair(
-            val condition: String,
-            val targetNode: BaseNode
-    )
-
     private fun cleanupLiteralNode(node: BaseNode): Boolean {
         var changed = false
 
@@ -314,7 +306,7 @@ class Decompiler(
 
     class NodeHolder(
             val nodes: ArrayList<BaseNode> = ArrayList(),
-            var prevNode: BaseNode? = null
+            private var prevNode: BaseNode? = null
     ) {
         fun add(node: BaseNode) {
             prevNode = prevNode.let {
@@ -327,11 +319,10 @@ class Decompiler(
         }
     }
 
-    private fun buildGraphForEvent(tempVarCounter: AtomicInteger, event: BaseEvent): ArrayList<BaseNode> {
+    private fun buildGraphForEvent(event: BaseEvent): ArrayList<BaseNode> {
         val vmState = VmState(
                 strings
         )
-        vmState.indent = 2
 
         val gotos = ArrayList<AbstractGotoNode>()
         val terminatingCommands = ArrayList<TerminatingFunctionNode>()
@@ -392,32 +383,6 @@ class Decompiler(
         }
     }
 
-    private fun labelIfUsed(optimized: String, labelGroup: MatchGroup, indent: String): String {
-        val gotoPos = labelGroup.range.start - 10
-        val gotosToLabel = optimized.allIndexesOf(Regex("""(?<=\W)goto label${labelGroup.value}"""))
-        val label = if (gotosToLabel.any { it != gotoPos }) {
-            "label${labelGroup.value}:"
-        } else {
-            ""
-        }
-        return label
-    }
-
-    private fun String.allIndexesOf(regex: Regex): List<Int> {
-        val positions = ArrayList<Int>()
-        var from = 0
-        while (true) {
-            val matchResult = regex.find(this, from)
-            if (matchResult != null) {
-                positions.add(matchResult.range.start)
-                from = matchResult.range.endInclusive + 1
-            } else {
-                break
-            }
-        }
-        return positions
-    }
-
     private fun parse(data0: ByteArray) {
         if (alreadyParsed) {
             throw IllegalStateException("parse() can be called only once")
@@ -434,7 +399,7 @@ class Decompiler(
         states.sortBy { state -> state.index }
 
         for (expectedIndex in -1 .. states.size - 2) {
-            if (states.get(expectedIndex + 1).index != expectedIndex) {
+            if (states[expectedIndex + 1].index != expectedIndex) {
                 throw IllegalStateException("State index $expectedIndex is missing")
             }
         }
@@ -442,13 +407,12 @@ class Decompiler(
 
     private fun parseCommands() {
         while (data.offset < data.data.size) {
-            val offset = data.offset
+            data.offset
             val index = data.readSigned32()
             val commandHeader: DataHeaders = toEnum(index)
-//            println("$offset:${commandHeader.name}")
             when (commandHeader) {
                 DH_COMMAND -> parseBotCommand(data)
-                DH_ONENTER, DH_MAINLOOP, DH_ONEXIT -> parseEventHandler(commandHeader, data)
+                DH_ONENTER, DH_MAINLOOP, DH_ONEXIT -> parseEventHandler(commandHeader)
                 DH_EVENT -> parseEvent(data)
                 DH_ENDONENTER, DH_ENDMAINLOOP, DH_ENDONEXIT, DH_ENDEVENT -> finalizeEvent()
                 DH_STATENAME -> parseStateName(data)
@@ -547,15 +511,15 @@ class Decompiler(
                 throw IllegalStateException("Too many local events in the bot script")
             }
         }
-        currentState.events.add(BotEvent(data.offset, eventType))
+        currentState.events.add(BotEvent(eventType))
     }
 
-    private fun parseEventHandler(event: DataHeaders, data: Data) {
+    private fun parseEventHandler(event: DataHeaders) {
         if (currentState.global) {
             throw IllegalStateException("$event outside of a state definition")
         }
 
-        currentState.events.add(WorldEvent(data.offset, event))
+        currentState.events.add(WorldEvent(event))
     }
 
     private var alreadyParsed: Boolean = false
@@ -587,8 +551,6 @@ class VmState(
         val strings: List<String>
 ) {
     lateinit var previousCommand: DataHeaders
-    var indent: Int = 0
-    val output = StringBuilder()
 }
 
 class Data(
@@ -605,14 +567,6 @@ class Data(
         return buf
     }
 
-    private fun uByte(byte: Byte): Int {
-        var result: Int = byte.toInt()
-        if (result < 0) {
-            result += 0x100
-        }
-        return result
-    }
-
     fun readSzString(size: Int): String {
         val buf = readToBuffer(size)
         return String(buf.array(), buf.arrayOffset(), buf.limit() - buf.position())
@@ -620,25 +574,6 @@ class Data(
 
     var offset: Int = 0
         private set
-}
-
-fun tryPopFromStack(stack: Stack<out Any>): String {
-    return if (stack.empty()) {
-        "?"
-    } else {
-        stack.pop().toString()
-    }
-}
-
-// Doesn't throw ConcurrentModificationException but make sure not to change future iterations items
-fun <T> List<T>.forEachReplacing(function: (T) -> Unit) {
-    val oldSize = this.size
-    for (i in 0 .. oldSize) {
-        val item = this[i]
-        function(item)
-
-        assert(this.size == oldSize)
-    }
 }
 
 val changingAddTos = StackChangingNode.AddsTo.values().filter { it != DONT_PUSHES_TO_STACK }
@@ -991,12 +926,10 @@ fun packSwitchBlockToText(node: BaseNode): Boolean {
 
             var endingLabel: BaseNode? = null
             for (it in nextNode.outputs.iterator()) {
-                val discoveredEndingLabel: BaseNode = if (canBeBranchingEnd(it)) {
-                    it
-                } else if (canBeBranchingEnd(it.nextNode)) {
-                    it.nextNode as LabelNode // For now only support cases with 'break's
-                } else {
-                    return@forEach
+                val discoveredEndingLabel: BaseNode = when {
+                    canBeBranchingEnd(it) -> it
+                    canBeBranchingEnd(it.nextNode) -> it.nextNode as LabelNode // For now only support cases with 'break's
+                    else -> return@forEach
                 }
 
                 if (endingLabel == null) {

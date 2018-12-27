@@ -12,9 +12,7 @@ enum class BotCommand(
         val numStringArgs: Int,
         val returnType: BotCommandReturnType
 ) {
-    BOTCMD_CHANGESTATE("changestate", 1, 0, RETURNVAL_VOID) {
-
-    },
+    BOTCMD_CHANGESTATE("changestate", 1, 0, RETURNVAL_VOID),
     BOTCMD_DELAY("delay", 1, 0, RETURNVAL_VOID),
     BOTCMD_RAND("Random", 2, 0, RETURNVAL_INT),
     BOTCMD_STRINGSAREEQUAL("StringsAreEqual", 0, 2, RETURNVAL_BOOLEAN),

@@ -205,7 +205,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
     },
     DH_DROPSTACKPOSITION {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
-            return dropFromStack(command, vmState)
+            return dropFromStack()
         }
     },
     DH_SCRIPTVARLIST {
@@ -260,12 +260,12 @@ enum class DataHeaders(requiredArgs: Int = 0)
     },
     DH_INCLOCALVAR(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
-            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]}++;" }
+            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { "local${command.arguments[0]}++;" }
         }
     },
     DH_DECLOCALVAR(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
-            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { stackArgs -> "local${command.arguments[0]}--;" }
+            return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK) { "local${command.arguments[0]}--;" }
         }
     },
     DH_ASSIGNLOCALVAR(1) {
@@ -309,7 +309,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
     },
     DH_DROP {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
-            return dropFromStack(command, vmState)
+            return dropFromStack()
         }
     },
     DH_INCGLOBALARRAY(1) {
@@ -401,6 +401,6 @@ enum class DataHeaders(requiredArgs: Int = 0)
     abstract fun processAndCreateNode(command: Command, vmState: VmState): BaseNode
 }
 
-private fun dropFromStack(command: Command, vmState: VmState): BaseNode {
+private fun dropFromStack(): BaseNode {
     return DropStackNode("// item dropped from stack")
 }

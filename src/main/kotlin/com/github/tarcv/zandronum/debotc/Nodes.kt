@@ -11,9 +11,9 @@ import kotlin.IllegalArgumentException
 import kotlin.collections.ArrayList
 
 abstract class BaseNode(open val asText: String, outputNum: Int) {
-    private val inputs_: ArrayList<BaseNode> = ArrayList()
+    private val _inputs: ArrayList<BaseNode> = ArrayList()
     val inputs : List<BaseNode>
-        get() = Collections.unmodifiableList(inputs_)
+        get() = Collections.unmodifiableList(_inputs)
 
     val outputs = OutputsHolder(outputNum)
 
@@ -27,8 +27,8 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
     val outEdgeTo = EdgesTo()
 
     fun addInput(node: BaseNode) {
-        assert(!inputs_.contains(node) || this == nullNode || node == nullNode)
-        inputs_.add(node)
+        assert(!_inputs.contains(node) || this == nullNode || node == nullNode)
+        _inputs.add(node)
     }
 
     class Edge(
@@ -41,20 +41,20 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 
             if (from.nextNode != to) throw IllegalArgumentException("Only nextNode edges can be destroyed")
             from.nextNode = nullNode
-            to.inputs_.remove(from)
+            to._inputs.remove(from)
 
             assert(!from.outputs.contains(to))
-            assert(!to.inputs_.contains(from))
+            assert(!to._inputs.contains(from))
         }
 
         private fun verifyStillValid() {
             if (!from.outputs.contains(to)
-            || !to.inputs_.contains(from)) {
+            || !to._inputs.contains(from)) {
                 throw AssertionError()
             }
         }
 
-        var from = from
+        private var from = from
             private set
 
         var to = to
@@ -64,8 +64,8 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
                 assert(from.outputs.contains(field))
                 from.outputs.replace(field, value)
 
-                assert(!to.inputs_.contains(from))
-                assert(value == nullNode || value.inputs_.count { it == from } == 1)
+                assert(!to._inputs.contains(from))
+                assert(value == nullNode || value._inputs.count { it == from } == 1)
                 assert(!from.outputs.contains(field))
                 assert(from.outputs.contains(value))
 
@@ -86,7 +86,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 
     inner class EdgesFrom {
         operator fun get(from: BaseNode): Edge {
-            if (!inputs_.contains(from)) {
+            if (!_inputs.contains(from)) {
                 throw IllegalArgumentException("No such edge")
             }
             return Edge(from, this@BaseNode)
@@ -114,7 +114,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
             if (holder.count { it == oldValue } != 1) throw IllegalArgumentException()
 
             privateSet(holder.indexOf(oldValue), newValue)
-            oldValue.inputs_.remove(this@BaseNode)
+            oldValue._inputs.remove(this@BaseNode)
         }
 
         private fun privateSet(index: Int, value: BaseNode) {
@@ -131,8 +131,6 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
             return found
         }
         fun forEach(function: (BaseNode) -> Unit) = holder.forEach(function)
-
-        fun takeWhile(predicate: (BaseNode) -> Boolean): List<BaseNode> = holder.takeWhile(predicate)
 
         fun all(predicate: (BaseNode) -> Boolean): Boolean = holder.all(predicate)
 

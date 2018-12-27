@@ -10,8 +10,4 @@ class State constructor(var name: String, val index: Int) {
     val events = ArrayList<BaseEvent>()
     val currentEvent: BaseEvent
         get() = events[events.size - 1]
-
-    companion object {
-        const val INDEX_NOT_SET = -2
-    }
 }

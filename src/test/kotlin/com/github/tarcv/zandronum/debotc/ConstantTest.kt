@@ -1,5 +1,5 @@
-import com.github.tarcv.zandronum.debotc.BotCommand
-import com.github.tarcv.zandronum.debotc.DataHeaders
+package com.github.tarcv.zandronum.debotc
+
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
