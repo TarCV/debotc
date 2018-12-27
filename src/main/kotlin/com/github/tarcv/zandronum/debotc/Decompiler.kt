@@ -47,7 +47,7 @@ class Decompiler {
                 if (eventNodes.isNotEmpty()) {
                     val currentNode = eventNodes[0]
                     compactAndPrintNodes(currentNode, "State ${state.index} - Event ${event.readableType}",
-                            true /*state.index == 1 && event.readableType == "mainloop" */)
+                            javaClass.desiredAssertionStatus() /*state.index == 1 && event.readableType == "mainloop" */)
                 }
 
                 println("\t}")
