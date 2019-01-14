@@ -4,7 +4,6 @@ import com.github.tarcv.zandronum.debotc.BotCommand.NUM_BOTCMDS
 import com.github.tarcv.zandronum.debotc.DataHeaders.*
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
-import com.mxgraph.layout.hierarchical.mxHierarchicalLayout
 import java.nio.ByteBuffer
 import java.nio.ByteOrder.LITTLE_ENDIAN
 import java.nio.file.Files
@@ -12,11 +11,7 @@ import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
-import com.mxgraph.view.mxGraph
-import com.mxgraph.swing.mxGraphComponent
-import com.mxgraph.util.mxEvent
 import java.util.Arrays.asList
-import javax.swing.JFrame
 import kotlin.text.RegexOption.*
 
 
@@ -46,8 +41,7 @@ class Decompiler {
                 val eventNodes = buildGraphForEvent(event)
                 if (eventNodes.isNotEmpty()) {
                     val currentNode = eventNodes[0]
-                    compactAndPrintNodes(currentNode, "State ${state.index} - Event ${event.readableType}",
-                            javaClass.desiredAssertionStatus() /*state.index == 1 && event.readableType == "mainloop" */)
+                    compactAndPrintNodes(currentNode)
                 }
 
                 println("\t}")
@@ -56,31 +50,16 @@ class Decompiler {
         }
     }
 
-    private fun compactAndPrintNodes(rootNode: BaseNode, title: String, drawGraph: Boolean): Boolean {
-        lateinit var origGraph: JFrame
-        lateinit var optimizedGraph: JFrame
-        lateinit var textGraph: JFrame
-        if (drawGraph) {
-            origGraph = showGraph(rootNode, "$title - From bytes")
-        }
-
+    private fun compactAndPrintNodes(rootNode: BaseNode): Boolean {
         var wasAtLeastOneChange = false
 
         wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
             recoverComplexNodes(node)
         } || wasAtLeastOneChange
 
-        if (drawGraph && wasAtLeastOneChange) {
-            optimizedGraph = showGraph(rootNode, "$title - Optimized", true)
-        }
-
         wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
             packToTextNodes(node)
         } || wasAtLeastOneChange
-
-        if (drawGraph && wasAtLeastOneChange) {
-            textGraph = showGraph(rootNode, "$title - Text", true)
-        }
 
         assert(rootNode.outputs.size == 1)
         assert(rootNode.nextNode.inputs.size == 1)
@@ -91,14 +70,6 @@ class Decompiler {
             assert(rootNode.nextNode.nextNode is EndNode)
         } else {
             assert(rootNode.nextNode is EndNode)
-        }
-
-        if (drawGraph) {
-            if (wasAtLeastOneChange) {
-                textGraph.dispose()
-                optimizedGraph.dispose()
-            }
-            origGraph.dispose()
         }
 
         return wasAtLeastOneChange
@@ -236,74 +207,6 @@ class Decompiler {
         }
 
         return changed
-    }
-
-    private fun showGraph(node: BaseNode, title: String, right: Boolean = false): JFrame {
-        val graph = mxGraph()
-        val parent = graph.defaultParent
-        val frame = JFrame()
-
-        val nodeToVertex = HashMap<BaseNode, Any>()
-
-        graph.model.beginUpdate()
-        val rootVertex: Any
-        try {
-            rootVertex = drawVertexes(graph, parent, nodeToVertex, node, 100.0, 0.0)
-        } finally {
-            graph.model.endUpdate()
-        }
-
-        mxHierarchicalLayout(graph).execute(parent, asList(rootVertex))
-
-        val graphComponent = mxGraphComponent(graph)
-
-        graphComponent.isConnectable = false
-        graphComponent.addListener(mxEvent.START_EDITING) { sender, evt ->
-            if (sender != null) {
-                val cell = evt.properties["cell"]
-                nodeToVertex.entries.find { it.value == cell }?.key?.run {
-                    replaceGotoWithEdge(this as GotoNode)
-                }
-            }
-        }
-        frame.title = title
-        frame.contentPane.add(graphComponent)
-        frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
-        frame.setSize(670, 800)
-        if (right) {
-            frame.setLocation(670, frame.y)
-        }
-        frame.isVisible = true
-
-        return frame
-    }
-
-    private fun drawVertexes(graph: mxGraph, parent: Any, nodeToVertex: HashMap<BaseNode, Any>, node: BaseNode, x: Double, y: Double): Any {
-        if (nodeToVertex.containsKey(node)) {
-            return nodeToVertex[node]!!
-        }
-
-        var actualX = x + 50.0 * node.inputs.size
-        if (node is LabelNode) actualX = 0.0
-
-        val inputs = node.inputs.joinToString { it.javaClass.simpleName + "@" + System.identityHashCode(it) }
-        val text = "${node.javaClass.simpleName}@${System.identityHashCode(node)}[ins: $inputs${System.lineSeparator()}, outs: ${node.outputs.size}]${System.lineSeparator()}${node.asText}"
-        val height = if (node is TextNode) {
-            20.0 * (1 + node.asText.count { it == '\n' })
-        } else {
-            20.0
-        }
-        val thisVertex = graph.insertVertex(parent, null, text, actualX, y, 40.0, height)
-        nodeToVertex[node] = thisVertex
-
-        var currentX = x
-        node.outputs.forEach {
-            val childVertex = drawVertexes(graph, parent, nodeToVertex, it, currentX, y + height + 10.0)
-            graph.insertEdge(parent, null, "", thisVertex, childVertex)
-            currentX += 50.0
-        }
-
-        return thisVertex
     }
 
     class NodeHolder(
