@@ -1,6 +1,7 @@
 package com.github.tarcv.zandronum.debotc
 
-import org.junit.Assert
+import kotlin.test.DefaultAsserter.assertEquals
+import kotlin.test.DefaultAsserter.assertTrue
 
 class SplitNode(vararg secondBranchNodes: BaseNode): BaseNode("Split", 2) {
     val nodeJoiningBothBranches: BaseNode
@@ -34,16 +35,16 @@ private fun assertIsSameStructureInternal(expectedNode: BaseNode, actualNode: Ba
 }
 
 private fun assertEqualNodes(expectedNode: BaseNode, actualNode: BaseNode) {
-    Assert.assertEquals(expectedNode.javaClass, actualNode.javaClass)
-    Assert.assertEquals(expectedNode.asText, actualNode.asText)
+    assertEquals("", expectedNode::class, actualNode::class)
+    assertEquals("", expectedNode.asText, actualNode.asText)
 
     // Order of inputs is never important
-    Assert.assertEquals("Inputs of ${nodeToDebugString(actualNode)}",
+    assertEquals("Inputs of ${nodeToDebugString(actualNode)}",
             listToText(expectedNode.inputs.sortedBy { nodeToDebugString(it) }),
             listToText(actualNode.inputs.sortedBy { nodeToDebugString(it) }))
 
     // But order of outputs is always important
-    Assert.assertEquals("Outputs of ${nodeToDebugString(actualNode)}",
+    assertEquals("Outputs of ${nodeToDebugString(actualNode)}",
             listToText(expectedNode.outputs.copy()), listToText(actualNode.outputs.copy()))
 }
 
@@ -52,9 +53,9 @@ fun listToText(expectedList: Collection<BaseNode>): String {
 }
 
 private fun nodeToDebugString(it: BaseNode) =
-        it.javaClass.simpleName + "[" + it.asText + "]"
+        it::class.simpleName + "[" + it.asText + "]"
 
-fun optimizeWhileAsserted(
+internal inline fun optimizeWhileAsserted(
         rootNode: BaseNode,
         visitor: (BaseNode) -> Boolean
 ): Boolean {
@@ -74,12 +75,12 @@ fun optimizeWhileAsserted(
         if (!shouldContinue) break
     }
 
-    Assert.assertTrue(wasAtLeastOneChange)
+    assertTrue("", wasAtLeastOneChange)
 
     return wasAtLeastOneChange
 }
 
-private fun assertInputsAndOutputsDiscoverable(rootNode: BaseNode) {
+internal fun assertInputsAndOutputsDiscoverable(rootNode: BaseNode) {
     val discoverableNodes = HashSet<BaseNode>()
     recurse(rootNode, discoverableNodes) { false }
 
@@ -97,7 +98,7 @@ private fun assertInputsAndOutputsDiscoverable(rootNode: BaseNode) {
     }
 }
 
-fun recurseAsserted(
+internal fun recurseAsserted(
         node: BaseNode,
         traversedNodes: HashSet<BaseNode>,
         visitor: (BaseNode) -> Boolean

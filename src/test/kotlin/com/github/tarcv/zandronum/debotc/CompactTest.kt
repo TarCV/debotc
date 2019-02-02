@@ -2,8 +2,8 @@ package com.github.tarcv.zandronum.debotc
 
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.ADDS_TO_NORMAL_STACK
-import org.junit.Test
-import java.util.Arrays.asList
+import kotlin.collections.listOf
+import kotlin.test.Test
 
 class CompactTest {
     @Test
@@ -65,7 +65,7 @@ class CompactTest {
 
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
-                .attachNode(TextNode("TestCommand1;" + System.lineSeparator() + "TestCommand2;"))
+                .attachNode(TextNode("TestCommand1;" + lineSeparator + "TestCommand2;"))
                 .attachNode(EndNode())
         assertIsSameStructure(expectedStructureRoot, rootNode)
     }
@@ -97,7 +97,7 @@ class CompactTest {
             val rootNode = BeginNode()
             val splitNode1 = SplitNode(
                     CommandNode("TestCommand2"),
-                    LiteralNode(asList(consumedMarker to ADDS_TO_NORMAL_STACK))
+                    LiteralNode(listOf(consumedMarker to ADDS_TO_NORMAL_STACK))
             )
             val splitNode2 = SplitNode(
                     CommandNode("TestCommand4"),

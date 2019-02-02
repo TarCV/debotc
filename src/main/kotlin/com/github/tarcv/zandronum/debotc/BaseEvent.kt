@@ -1,6 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
-import java.util.*
+import kotlin.collections.ArrayList
 
 abstract class BaseEvent {
     fun finalize() {
@@ -16,9 +16,9 @@ abstract class BaseEvent {
 
     abstract val readableType: String
 
-    private val _commands: ArrayList<Command> = ArrayList()
+    private val _commands: MutableList<Command> = ArrayList<Command>()
     val commands: List<Command>
-        get() = Collections.unmodifiableList(_commands)
+        get() = _commands
 
     private var finalized = false
         private set

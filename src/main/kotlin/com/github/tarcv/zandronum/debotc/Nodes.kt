@@ -4,16 +4,13 @@ import com.github.tarcv.zandronum.debotc.StackChangingNode.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder.Companion.createLiteralArgument
 import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder.Companion.createNormalStackArgument
-import java.util.*
-import java.util.Arrays.asList
-import java.util.Collections.singletonList
 import kotlin.IllegalArgumentException
 import kotlin.collections.ArrayList
 
 abstract class BaseNode(open val asText: String, outputNum: Int) {
     private val _inputs: ArrayList<BaseNode> = ArrayList()
     val inputs : List<BaseNode>
-        get() = Collections.unmodifiableList(_inputs)
+        get() = _inputs.toList()
 
     val outputs = OutputsHolder(outputNum)
 
@@ -135,7 +132,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
         fun all(predicate: (BaseNode) -> Boolean): Boolean = holder.all(predicate)
 
         fun copy(): List<BaseNode> {
-            return ArrayList(asList(*holder))
+            return holder.asList()
         }
 
         fun iterator(): Iterator<BaseNode> = holder.iterator()
@@ -313,7 +310,7 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
 
 class DropStackNode(override val asText: String)
     : StackChangingNode(
-        singletonList(createNormalStackArgument(0)),
+        listOf(createNormalStackArgument(0)),
         arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
 )
 
@@ -346,7 +343,7 @@ open class IfGotoNode(val condition: ArgumentHolder, targetByte: Int)
     : AbstractGotoNode(targetByte), ConsumesStack
 {
     override val arguments: List<ArgumentHolder>
-        get() = singletonList(condition)
+        get() = listOf(condition)
 
     override val asText: String
         get() = "if (${condition.argument}) ${super.asText}"
@@ -355,7 +352,7 @@ open class IfGotoNode(val condition: ArgumentHolder, targetByte: Int)
 class IfNotGotoNode(val condition: ArgumentHolder, targetByte: Int)
     : AbstractGotoNode(targetByte), ConsumesStack {
     override val arguments: List<ArgumentHolder>
-        get() = singletonList(condition)
+        get() = listOf(condition)
 
     override val asText: String
         get() = "if (! $condition) ${super.asText}"
@@ -370,10 +367,10 @@ class SwitchAndCaseNode(val conditionTarget: ArgumentHolder, condition: String, 
     : CaseGotoNode(condition, targetByte), ConsumesStack {
 
     override val arguments: List<ArgumentHolder>
-        get() = singletonList(conditionTarget)
+        get() = listOf(conditionTarget)
 
     override val asText: String
-        get() = "switch($conditionTarget):${System.lineSeparator()} case ($condition) ${super.asText}"
+        get() = "switch($conditionTarget):${lineSeparator} case ($condition) ${super.asText}"
 }
 
 class FullSwitchNode(
@@ -390,14 +387,14 @@ class FullSwitchNode(
     }
 
     override val arguments: List<ArgumentHolder>
-        get() = singletonList(conditionTarget)
+        get() = listOf(conditionTarget)
 
     override val asText: String
         get() {
             val conditionsAsText = conditions.joinToString(";   ") {
                 it.joinToString(", ")
             }
-            return "switch($conditionTarget):${System.lineSeparator()} cases: $conditionsAsText"
+            return "switch($conditionTarget):${lineSeparator} cases: $conditionsAsText"
         }
 
     val jumpTargets: List<BaseNode>
@@ -407,7 +404,7 @@ class FullSwitchNode(
 fun returnsAsText(node: StackChangingNode): String {
     return node.returns()
             .filter { !it.consumed }
-            .joinToString(System.lineSeparator(), postfix = ";") {
+            .joinToString(lineSeparator, postfix = ";") {
                 it.addsTo.asText() + it.value
             }
             .tryAppendSemicolon()
