@@ -9,7 +9,6 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder.LITTLE_ENDIAN
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import com.mxgraph.view.mxGraph
@@ -35,24 +34,24 @@ class Decompiler {
     }
 
     private fun print() {
-        AtomicInteger()
+        println("#!botc 1.0.0")
+        println("#include \"debotc_defs.bts\"")
         states.forEach { state ->
-            val name = if (state.global) "" else "state ${state.name} "
-            val suffix = if (state.global) "" else " // ${state.index}"
-            println("$name{$suffix")
+            val stateHeader = if (state.global) "" else "state \"${state.name}\": // ${state.index}"
+            println(stateHeader)
             state.events.forEach { event ->
-                println("\tevent ${event.readableType}() {")
+                println("\t${event.botcTitle} {")
 
                 val eventNodes = buildGraphForEvent(event)
                 if (eventNodes.isNotEmpty()) {
                     val currentNode = eventNodes[0]
-                    compactAndPrintNodes(currentNode, "State ${state.index} - Event ${event.readableType}",
-                            javaClass.desiredAssertionStatus() /*state.index == 1 && event.readableType == "mainloop" */)
+                    compactAndPrintNodes(currentNode, "State ${state.index} - Event ${event.botcTitle}",
+                            javaClass.desiredAssertionStatus() /*state.index == 1 && event.botcTitle == "mainloop" */)
                 }
 
                 println("\t}")
             }
-            println("}")
+            println()
         }
     }
 

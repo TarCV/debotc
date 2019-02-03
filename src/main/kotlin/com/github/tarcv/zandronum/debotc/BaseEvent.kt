@@ -14,7 +14,7 @@ abstract class BaseEvent {
         _commands.add(command)
     }
 
-    abstract val readableType: String
+    abstract val botcTitle: String
 
     private val _commands: ArrayList<Command> = ArrayList()
     val commands: List<Command>
@@ -26,15 +26,15 @@ abstract class BaseEvent {
 }
 
 class BotEvent(
-        val eventType: BotEventType
+        private val eventType: BotEventType
 ) : BaseEvent() {
-    override val readableType: String
-        get() = eventType.name.substring("BOTEVENT_".length).toLowerCase()
+    override val botcTitle: String
+        get() = "event \"${eventType.botcName}\""
 }
 
 class WorldEvent(
-        val eventType: DataHeaders
+        private val eventType: DataHeaders
 ) : BaseEvent() {
-    override val readableType: String
+    override val botcTitle: String
         get() = eventType.name.substring("DH_".length).toLowerCase()
 }
