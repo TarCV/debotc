@@ -14,26 +14,84 @@ class Decompiler {
         if (!alreadyParsed) {
             throw IllegalStateException("print() can be called only after parsing")
         }
-        states.forEach { state ->
-            val name = if (state.global) "" else "state ${state.name} "
-            val suffix = if (state.global) "" else " // ${state.index}"
-            println("$name{$suffix")
-            state.events.forEach { event ->
-                println("\tevent ${event.readableType}() {")
 
-                val eventNodes = buildGraphForEvent(event)
-                if (eventNodes.isNotEmpty()) {
-                    val currentNode = eventNodes[0]
-                    compactAndPrintNodes(currentNode)
+        println("#!botc 1.0.0")
+        println("#include \"debotc_defs.bts\"")
+        println()
+
+        val globalVariables = HashSet<Int>()
+        val globalArrays = HashSet<Int>()
+
+        // Have to scan for all global variables before printing
+        states
+                .map { state ->
+                    val stateBuilder = StringBuilder()
+
+                    val stateHeader = if (state.global) "" else "state \"${state.name}\": // ${state.index}"
+                    stateBuilder.appendln(stateHeader)
+
+                    val stateVariables = HashSet<Int>()
+
+                    // Have to scan for all global and state variables before printing
+                    val stateScripts = state.events
+                            .map { event ->
+                                val eventScriptBuilder = StringBuilder()
+
+                                eventScriptBuilder.appendln("\t${event.botcTitle} {")
+
+                                val eventNodes = buildGraphForEvent(event, globalVariables, globalArrays, stateVariables)
+                                if (eventNodes.isNotEmpty()) {
+                                    val currentNode = eventNodes[0]
+                                    val script = compactAndStringifyNodes(currentNode, "State ${state.index} - Event ${event.botcTitle}",
+                                            javaClass.desiredAssertionStatus())
+                                    eventScriptBuilder.appendln(script)
+                                }
+
+                                eventScriptBuilder.appendln("\t}")
+                            }
+                            .fold(initBlockForState(stateVariables)) { acc, script ->
+                                acc.appendln(script)
+                            }
+                    stateBuilder.appendln(stateScripts)
+
+                    stateBuilder.appendln()
                 }
-
-                println("\t}")
-            }
-            println("}")
-        }
+                .let {
+                    printBlockForGlobal(globalVariables, globalArrays)
+                    println()
+                    it
+                }
+                .forEach {
+                    println(it)
+                }
     }
 
-    private fun compactAndPrintNodes(rootNode: BaseNode): Boolean {
+    private fun initBlockForState(stateVariables: Set<Int>): StringBuilder {
+        return stateVariables
+                .sorted()
+                .map { "\tvar int \$local$it;" }
+                .fold(StringBuilder()) { acc, variables ->
+                    acc.appendln(variables)
+                }
+                .appendln()
+    }
+
+    private fun printBlockForGlobal(globalVariables: Set<Int>, globalArrays: Set<Int>) {
+        globalVariables
+                .sorted()
+                .forEach {
+                    println("var int \$global$it;")
+                }
+        globalArrays
+                .sorted()
+                .forEach {
+                    println("var int \$globalArray$it[];")
+                }
+    }
+
+    private fun compactAndStringifyNodes(rootNode: BaseNode, title: String, drawGraph: Boolean): String {
+        var scriptText = ""
+
         var wasAtLeastOneChange = false
 
         wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
@@ -48,14 +106,13 @@ class Decompiler {
         assert(rootNode.nextNode.inputs.size == 1)
         assert(rootNode.nextNode.outputs.size == 0 || rootNode.nextNode.outputs.size == 1)
         if (rootNode.nextNode.outputs.size == 1) {
-            val code = (rootNode.nextNode as TextNode).asText.replace(Regex("^", MULTILINE), "\t\t")
-            println(code)
+            scriptText = (rootNode.nextNode as TextNode).asText.replace(Regex("^", MULTILINE), "\t\t")
             assert(rootNode.nextNode.nextNode is EndNode)
         } else {
             assert(rootNode.nextNode is EndNode)
         }
 
-        return wasAtLeastOneChange
+        return scriptText
     }
 
     private fun packToTextNodes(node: BaseNode): Boolean {
@@ -207,9 +264,15 @@ class Decompiler {
         }
     }
 
-    private fun buildGraphForEvent(event: BaseEvent): ArrayList<BaseNode> {
+    private fun buildGraphForEvent(
+            event: BaseEvent,
+            globalVariables: MutableSet<Int>,
+            globalArrays: MutableSet<Int>,
+            stateVariables: MutableSet<Int>
+    ): ArrayList<BaseNode> {
         val vmState = VmState(
-                strings
+                strings,
+                globalVariables, globalArrays, stateVariables
         )
 
         val gotos = ArrayList<AbstractGotoNode>()
@@ -436,8 +499,23 @@ inline fun <reified T : Enum<T>> toEnum(index: Int): T {
 }
 
 class VmState(
-        val strings: List<String>
+        val strings: List<String>,
+        internal val globalVariables: MutableSet<Int>,
+        internal val globalArrays: MutableSet<Int>,
+        internal val stateVariables: MutableSet<Int>
 ) {
+    fun defineGlobalVariable(variableIndex: Int) {
+        globalVariables.add(variableIndex)
+    }
+
+    fun defineStateVariable(variableIndex: Int) {
+        stateVariables.add(variableIndex)
+    }
+
+    fun defineGlobalArray(arrayIndex: Int) {
+        globalArrays.add(arrayIndex)
+    }
+
     lateinit var previousCommand: DataHeaders
 }
 
