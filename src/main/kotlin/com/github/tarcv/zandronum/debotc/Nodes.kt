@@ -111,7 +111,9 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
         }
 
         fun replace(oldValue: BaseNode, newValue: BaseNode) {
-            if (holder.count { it == oldValue } != 1) throw IllegalArgumentException()
+            if (holder.count { it == oldValue } != 1 && oldValue !is LabelNode) {
+                throw IllegalArgumentException()
+            }
 
             privateSet(holder.indexOf(oldValue), newValue)
             oldValue._inputs.remove(this@BaseNode)

@@ -104,7 +104,7 @@ class Decompiler {
         globalArrays
                 .sorted()
                 .forEach {
-                    println("var int \$global$it[];")
+                    println("var int \$globalArray$it[];")
                 }
     }
 
