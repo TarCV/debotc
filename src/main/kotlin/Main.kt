@@ -12,10 +12,14 @@ fun main(args: Array<String>) {
     try {
         fseek(file, 0, SEEK_END)
         val size = ftell(file).toInt();
-        fseek(file, 0, SEEK_SET)
+        rewind(file)
         memScoped {
-            val buffer = allocArray<ByteVar>(size)
-            data0 = fgets(buffer, size, file)!!.readBytes(size).toUByteArray()
+            val buffer = allocArray<ByteVar>(size+1)
+            val elementsRead = fread(buffer, size.convert<size_t>(), 1, file).toInt()
+            if (elementsRead != 1) {
+                throw IllegalStateException("Failed to read file")
+            }
+            data0 = buffer.readBytes(size).toUByteArray()
         }
     } finally {
         fclose(file)
