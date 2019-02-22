@@ -10,7 +10,7 @@ import kotlin.text.RegexOption.*
 import kotlin.math.max
 
 class Decompiler {
-    public fun print() {
+    fun print() {
         if (!alreadyParsed) {
             throw IllegalStateException("print() can be called only after parsing")
         }
@@ -42,8 +42,7 @@ class Decompiler {
                                 val eventNodes = buildGraphForEvent(event, globalVariables, globalArrays, stateVariables)
                                 if (eventNodes.isNotEmpty()) {
                                     val currentNode = eventNodes[0]
-                                    val script = compactAndStringifyNodes(currentNode, "State ${state.index} - Event ${event.botcTitle}",
-                                            javaClass.desiredAssertionStatus())
+                                    val script = compactAndStringifyNodes(currentNode)
                                     eventScriptBuilder.appendln(script)
                                 }
 
@@ -89,7 +88,7 @@ class Decompiler {
                 }
     }
 
-    private fun compactAndStringifyNodes(rootNode: BaseNode, title: String, drawGraph: Boolean): String {
+    private fun compactAndStringifyNodes(rootNode: BaseNode): String {
         var scriptText = ""
 
         var wasAtLeastOneChange = false
@@ -193,7 +192,7 @@ class Decompiler {
                     it.outputs.replace(nextNode, newNode)
                 }
                 if (endingLabel.inputs.contains(nextNode)) {
-                    nextNode.outputs.replace(endingLabel, BaseNode.nullNode)
+                    nextNode.outputs.replace(endingLabel, nullNode)
                 }
                 if (endingLabel.inputs.contains(mainBranch)) {
                     endingLabel.inEdgeFrom[mainBranch].destroy()
@@ -334,7 +333,7 @@ class Decompiler {
         }
     }
 
-    public fun parse(data0: UByteArray) {
+    fun parse(data0: UByteArray) {
         if (alreadyParsed) {
             throw IllegalStateException("parse() can be called only once")
         }
@@ -358,7 +357,6 @@ class Decompiler {
 
     private fun parseCommands() {
         while (data.offset < data.data.size) {
-            data.offset
             val index = data.readSigned32()
             val commandHeader: DataHeaders = toEnum(index)
             when (commandHeader) {
@@ -847,7 +845,7 @@ fun replaceGotoWithEdge(jumpingNode: JumpingNode) {
         assert(!prevNode.outputs.contains(node))
         assert(prevNode.outputs.contains(jumpTargetNode))
     }
-    node.outputs.replace(jumpTargetNode, BaseNode.nullNode)
+    node.outputs.replace(jumpTargetNode, nullNode)
     assert(!jumpTargetNode.inputs.contains(node))
     assert(!nextNode.inputs.contains(node))
 }
@@ -890,7 +888,7 @@ fun joinNextSwitchNodes(node: BaseNode): Boolean {
                     it.outputs.replace(nextNode, switchNode)
                 }
                 caseNodes.forEach {
-                    it.outEdgeTo[it.jumpTargetNode].to = BaseNode.nullNode
+                    it.outEdgeTo[it.jumpTargetNode].to = nullNode
                 }
                 afterNextNode.outEdgeTo[afterNextNode.nextNode].destroy()
             } else {
@@ -964,4 +962,4 @@ fun packSwitchBlockToText(node: BaseNode): Boolean {
 }
 
 private fun String.indent() =
-        replace(Regex("^", MULTILINE), "\t")
+        this.replace(Regex("^", MULTILINE), "\t")

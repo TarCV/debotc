@@ -91,7 +91,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
     }
 
     inner class OutputsHolder(num: Int) {
-        private val holder = Array(num) { _ -> nullNode }
+        private val holder = Array<BaseNode>(num) { _ -> nullNode }
 
         val size: Int = holder.size
         operator fun get(index: Int): BaseNode = holder[index]
@@ -139,11 +139,11 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 
         fun iterator(): Iterator<BaseNode> = holder.iterator()
     }
-
-    companion object {
-        val nullNode = object : BaseNode("NULL", 0) { }
-    }
 }
+
+// Hack to avoid immutability in Kotlin Native
+class NullNode: BaseNode("NULL", 0) { }
+val nullNode = NullNode()
 
 class BeginNode: BaseNode("(BEGIN)", 1)
 class EndNode: BaseNode("(END)", 0)
