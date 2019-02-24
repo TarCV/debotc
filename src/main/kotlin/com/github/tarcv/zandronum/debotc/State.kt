@@ -1,6 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
-import java.util.ArrayList
+import kotlin.collections.ArrayList
 
 class State constructor(var name: String, val index: Int) {
     constructor() : this("(global)", -1)

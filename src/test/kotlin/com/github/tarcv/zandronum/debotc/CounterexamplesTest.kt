@@ -1,6 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
-import org.junit.Test
+import kotlin.test.Test
 
 /**
  * Counterexamples for inlining, i.e. some temporaries should not be inlines in these examples
