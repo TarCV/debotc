@@ -38,8 +38,8 @@ jobs:
       - run:
           name: "Publish Release on GitHub"
           command: |
-            VERSION=$(grep version <build.gradle | cut -c10- | rev | cut -c1- | rev)
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/*
+            VERSION=$(grep version <build.gradle | cut -c10- | rev | cut -c2- | rev)
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/konan/bin/linux_x64/*
 
 workflows:
   version: 2
