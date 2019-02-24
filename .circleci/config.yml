@@ -32,13 +32,14 @@ jobs:
     docker:
     - image: cibuilds/github:0.12
     steps:
-    - attach_workspace:
-        at: ./artifacts/libs
-    - run:
-        name: "Publish Release on GitHub"
-        command: |
-          VERSION=$(grep version <build.gradle | cut -c10- | rev | cut -c1- | rev)
-          ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/*
+      - checkout
+      - attach_workspace:
+          at: ./artifacts/libs
+      - run:
+          name: "Publish Release on GitHub"
+          command: |
+            VERSION=$(grep version <build.gradle | cut -c10- | rev | cut -c1- | rev)
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/*
 
 workflows:
   version: 2
