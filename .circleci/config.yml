@@ -7,7 +7,9 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-v2-{{ checksum "build.gradle" }}
+          keys:
+            - deps-v2-{{ checksum "build.gradle" }}
+            - deps-v2
       - run:
           name: Run Tests
           command: ./gradlew check
