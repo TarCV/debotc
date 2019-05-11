@@ -12,16 +12,16 @@ jobs:
             - deps-v2
       - run:
           name: Run Tests
-          command: ./gradlew check
+          command: ./gradlew jvmTest
       - store_test_results:
           path: build/test-results/test
       - run:
           name: Build
-          command: ./gradlew build
+          command: ./gradlew linuxMainBinaries
       - persist_to_workspace:
           root: build
           paths:
-            - konan/bin
+            - bin
       - save_cache:
           paths:
             - ~/.gradle
@@ -36,10 +36,14 @@ jobs:
       - attach_workspace:
           at: ./artifacts/libs
       - run:
+          name: "Prepare for publishing"
+          command: |
+            
+      - run:
           name: "Publish Release on GitHub"
           command: |
             VERSION=$(grep version <build.gradle | cut -c10- | rev | cut -c2- | rev)
-            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/konan/bin/linux_x64/*
+            ghr -t ${GITHUB_TOKEN} -u ${CIRCLE_PROJECT_USERNAME} -r ${CIRCLE_PROJECT_REPONAME} -c ${CIRCLE_SHA1} -delete ${VERSION} ./artifacts/libs/bin/linux/releaseExecutable/*
 
 workflows:
   version: 2

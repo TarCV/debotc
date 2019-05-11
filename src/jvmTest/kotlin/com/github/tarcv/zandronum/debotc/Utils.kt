@@ -57,7 +57,7 @@ private fun nodeToDebugString(it: BaseNode) =
 
 internal inline fun optimizeWhileAsserted(
         rootNode: BaseNode,
-        visitor: (BaseNode) -> Boolean
+        noinline visitor: (BaseNode) -> Boolean
 ): Boolean {
     var wasAtLeastOneChange = false
 

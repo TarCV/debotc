@@ -246,16 +246,16 @@ class CompactTest {
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
                 .attachNode(LabelNode(101))
-                .attachNode(TextNode("switch (local1) {\n" +
-                        "case 1:\n" +
-                        "\tBranch1;\n" +
-                        "\tbreak;\n" +
-                        "case 2:\n" +
-                        "\tBranch2;\n" +
-                        "\tbreak;\n" +
-                        "case 3:\n" +
-                        "\tBranch3;\n" +
-                        "\tbreak;\n" +
+                .attachNode(TextNode("switch (local1) {$lineSeparator" +
+                        "case 1:$lineSeparator" +
+                        "\tBranch1;$lineSeparator" +
+                        "\tbreak;$lineSeparator" +
+                        "case 2:$lineSeparator" +
+                        "\tBranch2;$lineSeparator" +
+                        "\tbreak;$lineSeparator" +
+                        "case 3:$lineSeparator" +
+                        "\tBranch3;$lineSeparator" +
+                        "\tbreak;$lineSeparator" +
                         "}"))
                 .attachNode(LabelNode(999))
                 .attachNode(EndNode())
