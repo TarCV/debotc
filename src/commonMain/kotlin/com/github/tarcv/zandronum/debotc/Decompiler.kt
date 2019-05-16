@@ -28,7 +28,7 @@ class Decompiler {
                     val stateBuilder = StringBuilder()
 
                     val stateHeader = if (state.global) "" else "state \"${state.name}\": // ${state.index}"
-                    stateBuilder.appendln(stateHeader)
+                    stateBuilder.appendLine(stateHeader)
 
                     val stateVariables = HashSet<Int>()
 
@@ -37,23 +37,23 @@ class Decompiler {
                             .map { event ->
                                 val eventScriptBuilder = StringBuilder()
 
-                                eventScriptBuilder.appendln("\t${event.botcTitle} {")
+                                eventScriptBuilder.appendLine("\t${event.botcTitle} {")
 
                                 val eventNodes = buildGraphForEvent(event, globalVariables, globalArrays, stateVariables)
                                 if (eventNodes.isNotEmpty()) {
                                     val currentNode = eventNodes[0]
                                     val script = compactAndStringifyNodes(currentNode)
-                                    eventScriptBuilder.appendln(script)
+                                    eventScriptBuilder.appendLine(script)
                                 }
 
-                                eventScriptBuilder.appendln("\t}")
+                                eventScriptBuilder.appendLine("\t}")
                             }
                             .fold(initBlockForState(stateVariables)) { acc, script ->
-                                acc.appendln(script)
+                                acc.appendLine(script)
                             }
-                    stateBuilder.appendln(stateScripts)
+                    stateBuilder.appendLine(stateScripts)
 
-                    stateBuilder.appendln()
+                    stateBuilder.appendLine()
                 }
                 .let {
                     printBlockForGlobal(globalVariables, globalArrays)
@@ -70,9 +70,9 @@ class Decompiler {
                 .sorted()
                 .map { "\tvar int \$local$it;" }
                 .fold(StringBuilder()) { acc, variables ->
-                    acc.appendln(variables)
+                    acc.appendLine(variables)
                 }
-                .appendln()
+                .appendLine()
     }
 
     private fun printBlockForGlobal(globalVariables: Set<Int>, globalArrays: Set<Int>) {
@@ -485,6 +485,7 @@ class Decompiler {
         states.add(State())
     }
 }
+
 const val MAX_NUM_GLOBAL_EVENTS = 32
 const val MAX_NUM_EVENTS = 32
 
@@ -517,7 +518,8 @@ class VmState(
     lateinit var previousCommand: DataHeaders
 }
 
-class Data(
+@ExperimentalUnsignedTypes
+class Data constructor(
         val data: UByteArray
 ) {
     fun readSigned32(): Int {
@@ -530,7 +532,7 @@ class Data(
     }
 
     fun readSzString(size: Int): String {
-        val result = data.asByteArray().stringFromUtf8OrThrow(offset, size)
+        val result = data.asByteArray().stringFromUtf8BytesOrThrow(offset, size)
         offset += size
         return result
     }

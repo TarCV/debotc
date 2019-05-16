@@ -114,7 +114,7 @@ enum class BotCommand(
 
         val stringArgs = StringBuilder()
         for (i in numStringArgs - 1 downTo 0) {
-            if (stringArgs.isNotEmpty()) stringArgs.insert(0, ", ")
+            if (stringArgs.isNotEmpty()) stringArgs.insertString(0, ", ")
             args.add(createStringStackArgument(i))
         }
 
