@@ -1,5 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
+import java.io.File
 import java.nio.charset.StandardCharsets
 
 /**
@@ -29,4 +30,34 @@ actual fun StringBuilder.insertString(index: Int, string: String): StringBuilder
 
 actual fun assert(value: Boolean) {
     kotlin.assert(value)
+}
+
+actual class FilePrinter actual constructor(path: String) : Printer {
+    private val writer = File(path).printWriter()
+
+    override fun close() {
+        writer.close()
+    }
+
+    override fun print(msg: String) {
+        writer.print(msg)
+    }
+
+    override fun println(msg: String) {
+        writer.println(msg)
+    }
+}
+
+actual object consolePrinter: Printer {
+    override fun close() {
+        // no op
+    }
+
+    override fun print(msg: String) {
+        kotlin.io.print(msg)
+    }
+
+    override fun println(msg: String) {
+        kotlin.io.println(msg)
+    }
 }

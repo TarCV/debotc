@@ -11,14 +11,15 @@ import kotlin.math.max
 
 @ExperimentalUnsignedTypes
 class Decompiler {
-    fun print() {
+
+    fun print(printer: Printer) {
         if (!alreadyParsed) {
             throw IllegalStateException("print() can be called only after parsing")
         }
 
-        println("#!botc 1.0.0")
-        println("#include \"debotc_defs.bts\"")
-        println()
+        printer.println("#!botc 1.0.0")
+        printer.println("#include \"debotc_defs.bts\"")
+        printer.println()
 
         val globalVariables = HashSet<Int>()
         val globalArrays = HashSet<Int>()
@@ -57,12 +58,12 @@ class Decompiler {
                     stateBuilder.appendLine()
                 }
                 .let {
-                    printBlockForGlobal(globalVariables, globalArrays)
-                    println()
+                    printBlockForGlobal(printer, globalVariables, globalArrays)
+                    printer.println()
                     it
                 }
                 .forEach {
-                    println(it)
+                    printer.println(it.toString())
                 }
     }
 
@@ -76,16 +77,16 @@ class Decompiler {
                 .appendLine()
     }
 
-    private fun printBlockForGlobal(globalVariables: Set<Int>, globalArrays: Set<Int>) {
+    private fun printBlockForGlobal(printer: Printer, globalVariables: Set<Int>, globalArrays: Set<Int>) {
         globalVariables
                 .sorted()
                 .forEach {
-                    println("var int \$global$it;")
+                    printer.println("var int \$global$it;")
                 }
         globalArrays
                 .sorted()
                 .forEach {
-                    println("var int \$globalArray$it[];")
+                    printer.println("var int \$globalArray$it[];")
                 }
     }
 

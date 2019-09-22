@@ -28,3 +28,29 @@ actual val lineSeparator: String  = "\n" // TODO: get system line separator
 actual fun assert(value: Boolean) {
     kotlin.assert(value)
 }
+
+actual class FilePrinter actual constructor(private val path: String) : Printer {
+    private val file = fopen(args[0], "a")
+
+    override fun close() {
+        fclose(file)
+    }
+
+    override fun println(msg: String) {
+        TODO()
+    }
+}
+
+actual object consolePrinter: Printer {
+    override fun close() {
+        // no op
+    }
+
+    override fun print(msg: String) {
+        kotlin.io.print(msg)
+    }
+
+    override fun println(msg: String) {
+        kotlin.io.println(msg)
+    }
+}
