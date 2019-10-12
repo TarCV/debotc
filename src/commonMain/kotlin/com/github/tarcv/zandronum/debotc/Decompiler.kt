@@ -9,6 +9,7 @@ import kotlin.collections.HashSet
 import kotlin.text.RegexOption.*
 import kotlin.math.max
 
+@ExperimentalUnsignedTypes
 class Decompiler {
     fun print() {
         if (!alreadyParsed) {
