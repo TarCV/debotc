@@ -12,7 +12,7 @@ class CounterexamplesTest {
             val rootNode = BeginNode()
             rootNode
                     .attachNode(FunctionNode("IsEnemyVisible", emptyList(), StackChangingNode.AddsTo.ADDS_TO_NORMAL_STACK))
-                    .attachNode(FunctionNode("ClearEnemy", emptyList(), StackChangingNode.AddsTo.DONT_PUSHES_TO_STACK))
+                    .attachNode(FunctionNode("ClearEnemy", emptyList(), StackChangingNode.AddsTo.DOES_NOT_PUSH_TO_STACK))
                     .attachNode(FunctionNode("Function", StackChangingNode.consumesNormalStack(1), StackChangingNode.AddsTo.ADDS_TO_NORMAL_STACK))
                     .attachNode(EndNode())
             return rootNode

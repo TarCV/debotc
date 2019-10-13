@@ -1,6 +1,5 @@
 package com.github.tarcv.zandronum.debotc
 
-import com.github.tarcv.zandronum.debotc.BotCommand.NUM_BOTCMDS
 import com.github.tarcv.zandronum.debotc.DataHeaders.*
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
@@ -343,7 +342,7 @@ class Decompiler {
 
         data = Data(data0)
 
-        parseCommands()
+        parseCommands(consolePrinter)
         normalizeStates()
     }
 
@@ -357,51 +356,49 @@ class Decompiler {
         }
     }
 
-    private fun parseCommands() {
+    private fun parseCommands(disasmDumper: Printer? = null) {
+        val parseState = ParseState(data, labelPositions)
         while (data.offset < data.data.size) {
+            val offset = data.offset
             val index = data.readSigned32()
             val commandHeader: DataHeaders = toEnum(index)
-            when (commandHeader) {
-                DH_COMMAND -> parseBotCommand(data)
-                DH_ONENTER, DH_MAINLOOP, DH_ONEXIT -> parseEventHandler(commandHeader)
-                DH_EVENT -> parseEvent(data)
-                DH_ENDONENTER, DH_ENDMAINLOOP, DH_ENDONEXIT, DH_ENDEVENT -> finalizeEvent()
-                DH_STATENAME -> parseStateName(data)
-                DH_STATEIDX -> throw IllegalStateException("DH_STATEIDX without DH_STATENAME is not supported")
-                DH_PUSHNUMBER, DH_PUSHSTRINGINDEX, DH_PUSHGLOBALVAR, DH_PUSHLOCALVAR, DH_INCGLOBALVAR, DH_DECGLOBALVAR,
-                DH_ASSIGNGLOBALVAR, DH_ADDGLOBALVAR, DH_SUBGLOBALVAR, DH_MULGLOBALVAR,
-                DH_DIVGLOBALVAR, DH_MODGLOBALVAR, DH_INCLOCALVAR, DH_DECLOCALVAR, DH_ASSIGNLOCALVAR,
-                DH_ADDLOCALVAR, DH_SUBLOCALVAR, DH_MULLOCALVAR, DH_DIVLOCALVAR, DH_MODLOCALVAR,
-                DH_INCGLOBALARRAY, DH_DECGLOBALARRAY, DH_ASSIGNGLOBALARRAY, DH_ADDGLOBALARRAY,
-                DH_SUBGLOBALARRAY, DH_MULGLOBALARRAY, DH_DIVGLOBALARRAY, DH_MODGLOBALARRAY,
-                DH_PUSHGLOBALARRAY
-                -> parseCommandWithArg(commandHeader, 1)
-                DH_IFGOTO, DH_IFNOTGOTO, DH_GOTO
-                -> parseCommandWithArg(commandHeader, 1, isGoto = true)
-                DH_SCRIPTVARLIST -> parseScriptVarList()
-                DH_CASEGOTO -> parseCommandWithArg(commandHeader, 2, isGoto = true)
-                DH_ORLOGICAL, DH_ANDLOGICAL, DH_ORBITWISE, DH_EORBITWISE, DH_ANDBITWISE,
-                DH_EQUALS, DH_NOTEQUALS, DH_DROPSTACKPOSITION, DH_LESSTHAN, DH_LESSTHANEQUALS,
-                DH_GREATERTHAN, DH_GREATERTHANEQUALS, DH_NEGATELOGICAL, DH_LSHIFT, DH_RSHIFT,
-                DH_ADD, DH_SUBTRACT, DH_UNARYMINUS, DH_MULTIPLY, DH_DIVIDE, DH_MODULUS, DH_DROP,
-                DH_SWAP, DH_ARRAYSET
-                -> parseCommandWithArg(commandHeader, 0)
-                DH_STRINGLIST -> addStrings()
-                else -> throw IllegalStateException("Unexpected header $commandHeader at ${data.offset}")
+
+            if (disasmDumper != null) {
+                disasmDumper.println()
+                disasmDumper.print("$offset: ${commandHeader.name} ")
+            }
+
+            val command = commandHeader.parseCommand(parseState)
+            if (command == null) {
+                when (commandHeader) {
+                    DH_ONENTER, DH_MAINLOOP, DH_ONEXIT -> parseEventHandler(commandHeader)
+                    DH_EVENT -> parseEvent(data)
+                    DH_ENDONENTER, DH_ENDMAINLOOP, DH_ENDONEXIT, DH_ENDEVENT -> finalizeEvent()
+                    DH_STATENAME -> parseStateName(data)
+                    DH_STATEIDX -> throw IllegalStateException("DH_STATEIDX without DH_STATENAME is not supported")
+                    DH_SCRIPTVARLIST -> parseScriptVarList()
+                    DH_STRINGLIST -> addStrings()
+
+                    else -> throw IllegalStateException("Unexpected header $commandHeader at ${data.offset}")
+                }
+            } else {
+                currentState.currentEvent.addCommand(command)
             }
         }
     }
 
-    private fun parseScriptVarList() {
+    private fun parseScriptVarList(): Command? {
         currentState.currentEvent.varList = data.readSigned32()
+        return null
     }
 
-    private fun finalizeEvent() {
+    private fun finalizeEvent(): Command? {
         eventEnds.add((data.offset - 4).toString())
         currentState.currentEvent.finalize()
+        return null
     }
 
-    private fun addStrings() {
+    private fun addStrings(): Command? {
         val numStrings = data.readSigned32()
         if (strings.isNotEmpty()) {
             throw IllegalStateException("Strings were already added")
@@ -411,18 +408,7 @@ class Decompiler {
             val str = data.readSzString(length)
             strings.add(str)
         }
-    }
-
-    private fun parseCommandWithArg(commandHeader: DataHeaders, numberArguments: Int, isGoto: Boolean = false) {
-        val positionBefore = data.offset - 4
-        val args = IntArray(numberArguments)
-        for (i in 0 until numberArguments) {
-            args[i] = data.readSigned32()
-        }
-        if (isGoto) {
-            labelPositions.add(args.last())
-        }
-        currentState.currentEvent.addCommand(Command(positionBefore, data.offset, commandHeader, *args))
+        return null
     }
 
     private fun parseStateName(data: Data) {
@@ -439,16 +425,6 @@ class Decompiler {
         }
 
         states.add(com.github.tarcv.zandronum.debotc.State(name, stateIndex))
-    }
-
-    private fun parseBotCommand(data: Data) {
-        val positionBefore = data.offset - 4
-        val command = data.readSigned32()
-        if (command < 0 || command >= NUM_BOTCMDS.ordinal) {
-            throw IllegalStateException("Illegal command $command in ${currentState.name}")
-        }
-        val argument = data.readSigned32()
-        currentState.currentEvent.addCommand(Command(positionBefore, data.offset, DH_COMMAND, command, argument))
     }
 
     private fun parseEvent(data: Data) {
@@ -543,7 +519,7 @@ class Data constructor(
         private set
 }
 
-val changingAddTos = StackChangingNode.AddsTo.values().filter { it != DONT_PUSHES_TO_STACK }
+val changingAddTos = StackChangingNode.AddsTo.values().filter { it != DOES_NOT_PUSH_TO_STACK }
 fun inlineStackArgs(node: BaseNode): Boolean {
     var changed = false
 
@@ -624,7 +600,7 @@ private fun tryLiteralizeNextNode(node: BaseNode): Boolean {
                     assert(BotCommand.BOTCMD_DELAY.returnType == BotCommandReturnType.RETURNVAL_VOID)
 
                     val returns = nextNode.returns()
-                    val replacingNode = when (returns.count { it.addsTo != DONT_PUSHES_TO_STACK }) {
+                    val replacingNode = when (returns.count { it.addsTo != DOES_NOT_PUSH_TO_STACK }) {
                         0 -> {
                             if (returns.size != 1) throw AssertionError()
                             CommandNode(returns[0].addsTo.asText() + returns[0].value)
@@ -964,6 +940,12 @@ fun packSwitchBlockToText(node: BaseNode): Boolean {
 
     return changed
 }
+
+@ExperimentalUnsignedTypes
+class ParseState(
+        val data: Data,
+        val labelPositions: HashSet<Int>
+)
 
 private fun String.indent() =
         this.replace(Regex("^", MULTILINE), "\t")

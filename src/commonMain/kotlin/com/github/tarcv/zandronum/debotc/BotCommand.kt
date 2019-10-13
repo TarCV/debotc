@@ -121,7 +121,7 @@ enum class BotCommand(
         val addsTo = when(returnType) {
             RETURNVAL_INT, RETURNVAL_BOOLEAN -> ADDS_TO_NORMAL_STACK
             RETURNVAL_STRING -> ADDS_TO_STRING_STACK
-            RETURNVAL_VOID -> DONT_PUSHES_TO_STACK
+            RETURNVAL_VOID -> DOES_NOT_PUSH_TO_STACK
         }
 
         return FunctionNode(readableName, args, addsTo)
