@@ -23,6 +23,11 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
     val inEdgeFrom = EdgesFrom()
     val outEdgeTo = EdgesTo()
 
+    /**
+     * Does it access anything besides stacks? E.g. does it change variable(s), changes or requests world state
+     */
+    open val hasNonStackDeps: Boolean = false
+
     fun addInput(node: BaseNode) {
         assert(!_inputs.contains(node) || this == nullNode || node == nullNode)
         _inputs.add(node)
@@ -148,7 +153,9 @@ val nullNode = NullNode()
 class BeginNode: BaseNode("(BEGIN)", 1)
 class EndNode: BaseNode("(END)", 0)
 
-open class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1)
+open class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1) {
+    override val hasNonStackDeps: Boolean = true
+}
 
 class TextNode(asText: String): BaseNode(asText, 1)
 
@@ -278,11 +285,17 @@ abstract class StackChangingNode(
 class CustomStackConsumingNode(
         numArgs: Int,
         addsTo: AddsTo,
+        override val hasNonStackDeps: Boolean = false,
         private val transformer: (List<ArgumentHolder>) -> String
 )
 : StackChangingNode(consumesNormalStack(numArgs), arrayOf(ReturnPrototype(addsTo, { arguments -> transformer(arguments) })))
 
-open class FunctionNode(val name: String, arguments: List<ArgumentHolder>, addsTo: AddsTo)
+open class FunctionNode(
+        val name: String,
+        arguments: List<ArgumentHolder>,
+        addsTo: AddsTo,
+        override val hasNonStackDeps: Boolean = false
+)
     : StackChangingNode(
         arguments,
         arrayOf(ReturnPrototype(addsTo, { _ -> "$name(${arguments.joinToString { it.toString() }})" }))

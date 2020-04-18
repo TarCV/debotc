@@ -124,7 +124,7 @@ enum class BotCommand(
             RETURNVAL_VOID -> DONT_PUSHES_TO_STACK
         }
 
-        return FunctionNode(readableName, args, addsTo)
+        return FunctionNode(readableName, args, addsTo, hasNonStackDeps = true)
     }
 }
 

@@ -89,166 +89,6 @@ class Decompiler {
                 }
     }
 
-    private fun compactAndStringifyNodes(rootNode: BaseNode): String {
-        var scriptText = ""
-
-        var wasAtLeastOneChange = false
-
-        wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
-            recoverComplexNodes(node)
-        } || wasAtLeastOneChange
-
-        wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
-            packToTextNodes(node)
-        } || wasAtLeastOneChange
-
-        assert(rootNode.outputs.size == 1)
-        assert(rootNode.nextNode.inputs.size == 1)
-        assert(rootNode.nextNode.outputs.size == 0 || rootNode.nextNode.outputs.size == 1)
-        if (rootNode.nextNode.outputs.size == 1) {
-            scriptText = (rootNode.nextNode as TextNode).asText.replace(Regex("^", MULTILINE), "\t\t")
-            assert(rootNode.nextNode.nextNode is EndNode)
-        } else {
-            assert(rootNode.nextNode is EndNode)
-        }
-
-        return scriptText
-    }
-
-    private fun packToTextNodes(node: BaseNode): Boolean {
-        var changed = false
-
-        changed = packPairsToTextNodes(node) || changed
-
-        changed = convertToTextNodes(node) || changed
-
-        changed = removeUnusedLabel(node) || changed
-
-        changed = removeUnusedLiterals(node) || changed
-
-        changed = packIfBlockToText(node) || changed
-
-        changed = packSwitchBlockToText(node) || changed
-
-        return changed
-    }
-
-    private fun packIfBlockToText(node: BaseNode): Boolean {
-        var changed = false
-
-        node.outputs.copy().forEach { nextNode ->
-            if (nextNode.outputs.size == 2) {
-                var condition: String
-                var mainBranch: BaseNode
-                var elseBranch: BaseNode
-                val endingLabel: BaseNode
-
-                when (nextNode) {
-                    is IfNotGotoNode -> {
-                        mainBranch = nextNode.nextNode
-                        elseBranch = nextNode.jumpTargetNode
-                        condition = nextNode.condition.argument.toString()
-                    }
-                    is IfGotoNode -> {
-                        mainBranch = nextNode.jumpTargetNode
-                        elseBranch = nextNode.nextNode
-                        condition = invertCondition(nextNode.condition.argument.toString())
-                    }
-                    else -> return@forEach
-                }
-
-                if (mainBranch is TextNode
-                        && canBeBranchingEnd(elseBranch)
-                        && mainBranch.nextNode == elseBranch
-                ) {
-                    endingLabel = elseBranch
-                } else if (canBeBranchingEnd(mainBranch)
-                        && elseBranch is TextNode
-                        && mainBranch == elseBranch.nextNode) {
-                    endingLabel = mainBranch
-                    mainBranch = elseBranch
-                    elseBranch = endingLabel
-                    condition = invertCondition(condition)
-                } else if (mainBranch is TextNode
-                        && elseBranch is TextNode
-                        && mainBranch.nextNode == elseBranch.nextNode
-                        && canBeBranchingEnd(mainBranch.nextNode)) {
-                    endingLabel = mainBranch.nextNode as LabelNode
-                } else {
-                    return@forEach
-                }
-
-                changed = true
-
-                val elseBranchText = if (elseBranch != endingLabel) {
-                    " else {${lineSeparator}${elseBranch.asText.indent()}${lineSeparator}}"
-                } else ""
-                val text = "if ($condition) {${lineSeparator}" +
-                        "${mainBranch.asText.indent()}${lineSeparator}" +
-                        "}$elseBranchText"
-                val newNode = TextNode(text)
-
-                newNode.nextNode = endingLabel
-                ArrayList(nextNode.inputs).forEach {
-                    it.outputs.replace(nextNode, newNode)
-                }
-                if (endingLabel.inputs.contains(nextNode)) {
-                    nextNode.outputs.replace(endingLabel, nullNode)
-                }
-                if (endingLabel.inputs.contains(mainBranch)) {
-                    endingLabel.inEdgeFrom[mainBranch].destroy()
-                }
-                if (endingLabel.inputs.contains(elseBranch)) {
-                    endingLabel.inEdgeFrom[elseBranch].destroy()
-                }
-            }
-        }
-
-        return changed
-    }
-
-    private fun recoverComplexNodes(node: BaseNode): Boolean {
-        var changed = false
-
-        changed = tryLiteralizeNextNode(node) || changed
-
-        changed = joinNextLiteralNodes(node) || changed
-
-        changed = inlineStackArgs(node) || changed
-
-        changed = cleanupLiteralNode(node) || changed
-
-        changed = joinNextSwitchNodes(node) || changed
-
-        changed = removeUnusedLabel(node) || changed
-
-        return changed
-    }
-
-    private fun cleanupLiteralNode(node: BaseNode): Boolean {
-        var changed = false
-
-        if (node.outputs.size > 0) {
-            val nextNode = node.nextNode
-            if (nextNode is LiteralNode) {
-                val returns = nextNode.returns()
-                val notConsumedReturns = returns.filter { !it.consumed }
-                if (returns.size != notConsumedReturns.size) {
-                    changed = true
-
-                    if (notConsumedReturns.isNotEmpty()) {
-                        val newNode = LiteralNode(prototypesFromReturns(notConsumedReturns))
-                        replaceNode(nextNode, newNode)
-                    } else {
-                        cutNode(nextNode)
-                    }
-                }
-            }
-        }
-
-        return changed
-    }
-
     class NodeHolder(
             val nodes: ArrayList<BaseNode> = ArrayList(),
             private var prevNode: BaseNode? = null
@@ -324,14 +164,6 @@ class Decompiler {
         }
 
         return nodeHolder.nodes
-    }
-
-    private fun invertCondition(condition: String): String {
-        return if (Regex("^!\\(.+\\)$").matches(condition)) {
-            condition.substring(2, condition.length - 1)
-        } else {
-            "!($condition)"
-        }
     }
 
     fun parse(data0: UByteArray) {
@@ -485,6 +317,180 @@ class Decompiler {
         states = ArrayList()
         states.add(State())
     }
+
+    companion object {
+        private fun compactAndStringifyNodes(rootNode: BaseNode): String {
+            var scriptText = ""
+
+            compactNodes(rootNode)
+
+            assert(rootNode.outputs.size == 1)
+            assert(rootNode.nextNode.inputs.size == 1)
+            assert(rootNode.nextNode.outputs.size == 0 || rootNode.nextNode.outputs.size == 1)
+            if (rootNode.nextNode.outputs.size == 1) {
+                scriptText = (rootNode.nextNode as TextNode).asText.replace(Regex("^", MULTILINE), "\t\t")
+                assert(rootNode.nextNode.nextNode is EndNode)
+            } else {
+                assert(rootNode.nextNode is EndNode)
+            }
+
+            return scriptText
+        }
+
+        fun compactNodes(rootNode: BaseNode) {
+            var wasAtLeastOneChange = false
+
+            wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
+                recoverComplexNodes(node)
+            } || wasAtLeastOneChange
+
+            wasAtLeastOneChange = optimizeWhile(rootNode) { node ->
+                packToTextNodes(node)
+            } || wasAtLeastOneChange
+        }
+
+        private fun packToTextNodes(node: BaseNode): Boolean {
+            var changed = false
+
+            changed = packPairsToTextNodes(node) || changed
+
+            changed = convertToTextNodes(node) || changed
+
+            changed = removeUnusedLabel(node) || changed
+
+            changed = removeUnusedLiterals(node) || changed
+
+            changed = packIfBlockToText(node) || changed
+
+            changed = packSwitchBlockToText(node) || changed
+
+            return changed
+        }
+
+        private fun packIfBlockToText(node: BaseNode): Boolean {
+            var changed = false
+
+            node.outputs.copy().forEach { nextNode ->
+                if (nextNode.outputs.size == 2) {
+                    var condition: String
+                    var mainBranch: BaseNode
+                    var elseBranch: BaseNode
+                    val endingLabel: BaseNode
+
+                    when (nextNode) {
+                        is IfNotGotoNode -> {
+                            mainBranch = nextNode.nextNode
+                            elseBranch = nextNode.jumpTargetNode
+                            condition = nextNode.condition.argument.toString()
+                        }
+                        is IfGotoNode -> {
+                            mainBranch = nextNode.jumpTargetNode
+                            elseBranch = nextNode.nextNode
+                            condition = invertCondition(nextNode.condition.argument.toString())
+                        }
+                        else -> return@forEach
+                    }
+
+                    if (mainBranch is TextNode
+                            && canBeBranchingEnd(elseBranch)
+                            && mainBranch.nextNode == elseBranch
+                    ) {
+                        endingLabel = elseBranch
+                    } else if (canBeBranchingEnd(mainBranch)
+                            && elseBranch is TextNode
+                            && mainBranch == elseBranch.nextNode) {
+                        endingLabel = mainBranch
+                        mainBranch = elseBranch
+                        elseBranch = endingLabel
+                        condition = invertCondition(condition)
+                    } else if (mainBranch is TextNode
+                            && elseBranch is TextNode
+                            && mainBranch.nextNode == elseBranch.nextNode
+                            && canBeBranchingEnd(mainBranch.nextNode)) {
+                        endingLabel = mainBranch.nextNode as LabelNode
+                    } else {
+                        return@forEach
+                    }
+
+                    changed = true
+
+                    val elseBranchText = if (elseBranch != endingLabel) {
+                        " else {${lineSeparator}${elseBranch.asText.indent()}${lineSeparator}}"
+                    } else ""
+                    val text = "if ($condition) {${lineSeparator}" +
+                            "${mainBranch.asText.indent()}${lineSeparator}" +
+                            "}$elseBranchText"
+                    val newNode = TextNode(text)
+
+                    newNode.nextNode = endingLabel
+                    ArrayList(nextNode.inputs).forEach {
+                        it.outputs.replace(nextNode, newNode)
+                    }
+                    if (endingLabel.inputs.contains(nextNode)) {
+                        nextNode.outputs.replace(endingLabel, nullNode)
+                    }
+                    if (endingLabel.inputs.contains(mainBranch)) {
+                        endingLabel.inEdgeFrom[mainBranch].destroy()
+                    }
+                    if (endingLabel.inputs.contains(elseBranch)) {
+                        endingLabel.inEdgeFrom[elseBranch].destroy()
+                    }
+                }
+            }
+
+            return changed
+        }
+
+        private fun recoverComplexNodes(node: BaseNode): Boolean {
+            var changed = false
+
+            changed = tryLiteralizeNextNode(node) || changed
+
+            changed = joinNextLiteralNodes(node) || changed
+
+            changed = inlineStackArgs(node) || changed
+
+            changed = cleanupLiteralNode(node) || changed
+
+            changed = joinNextSwitchNodes(node) || changed
+
+            changed = removeUnusedLabel(node) || changed
+
+            return changed
+        }
+
+        private fun cleanupLiteralNode(node: BaseNode): Boolean {
+            var changed = false
+
+            if (node.outputs.size > 0) {
+                val nextNode = node.nextNode
+                if (nextNode is LiteralNode) {
+                    val returns = nextNode.returns()
+                    val notConsumedReturns = returns.filter { !it.consumed }
+                    if (returns.size != notConsumedReturns.size) {
+                        changed = true
+
+                        if (notConsumedReturns.isNotEmpty()) {
+                            val newNode = LiteralNode(prototypesFromReturns(notConsumedReturns))
+                            replaceNode(nextNode, newNode)
+                        } else {
+                            cutNode(nextNode)
+                        }
+                    }
+                }
+            }
+
+            return changed
+        }
+
+        private fun invertCondition(condition: String): String {
+            return if (Regex("^!\\(.+\\)$").matches(condition)) {
+                condition.substring(2, condition.length - 1)
+            } else {
+                "!($condition)"
+            }
+        }
+    }
 }
 
 const val MAX_NUM_GLOBAL_EVENTS = 32
@@ -542,7 +548,12 @@ class Data constructor(
         private set
 }
 
-val changingAddTos = StackChangingNode.AddsTo.values().filter { it != DONT_PUSHES_TO_STACK }
+val changingAddTos = StackChangingNode.AddsTo.values().filter {
+    when(it) {
+        DONT_PUSHES_TO_STACK -> false
+        ADDS_TO_NORMAL_STACK, ADDS_TO_STRING_STACK -> true
+    }
+}
 fun inlineStackArgs(node: BaseNode): Boolean {
     var changed = false
 
@@ -614,23 +625,25 @@ private fun tryLiteralizeNextNode(node: BaseNode): Boolean {
 
     if (node.outputs.size > 0) {
         node.outputs.forEach { nextNode ->
-            if (nextNode is StackChangingNode && nextNode.outputs.size == 1) {
+            // We can only replace function nodes (nodes returning values) with literal
+            //  as far as are not dangerous (has no side effects)
+            if (nextNode is StackChangingNode && nextNode !is LiteralNode
+                    && nextNode.outputs.size == 1 && !nextNode.hasNonStackDeps) {
                 val allArgsAreStatic = nextNode.arguments.all { it.argument is StackChangingNode.LiteralArgument }
 
                 if (allArgsAreStatic) {
-                    // We can only replace function nodes (nodes returning values) with literal
-                    //  as far as all dangerous commands are statements (don't return any values)
-                    assert(BotCommand.BOTCMD_DELAY.returnType == BotCommandReturnType.RETURNVAL_VOID)
+                    // Avoid any dangerous nodes that are not marked as having non-stack dependencies
+                    // Such dangerous commands are usually statements (don't return any values)
 
                     val returns = nextNode.returns()
-                    val replacingNode = when (returns.count { it.addsTo != DONT_PUSHES_TO_STACK }) {
-                        0 -> {
-                            if (returns.size != 1) throw AssertionError()
-                            CommandNode(returns[0].addsTo.asText() + returns[0].value)
+                    val changingReturnsCount = returns.count {
+                        when(it.addsTo) {
+                            DONT_PUSHES_TO_STACK -> false
+                            ADDS_TO_NORMAL_STACK, ADDS_TO_STRING_STACK -> true
                         }
-                        else -> LiteralNode(nextNode.returns().map { it.value to it.addsTo })
                     }
-                    if (nextNode::class != replacingNode::class) {
+                    if (changingReturnsCount != 0) {
+                        val replacingNode = LiteralNode(nextNode.returns().map { it.value to it.addsTo })
                         replaceNode(nextNode, replacingNode)
                         changed = true
                     }
