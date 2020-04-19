@@ -4,6 +4,7 @@ import com.github.tarcv.zandronum.debotc.BotCommand.NUM_BOTCMDS
 import com.github.tarcv.zandronum.debotc.DataHeaders.*
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
+import com.github.tarcv.zandronum.debotc.StackChangingNode.Companion.filterIsStackChanging
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import kotlin.text.RegexOption.*
@@ -548,76 +549,77 @@ class Data constructor(
         private set
 }
 
-val changingAddTos = StackChangingNode.AddsTo.values().filter {
-    when(it) {
-        DONT_PUSHES_TO_STACK -> false
-        ADDS_TO_NORMAL_STACK, ADDS_TO_STRING_STACK -> true
-    }
-}
+val changingAddTos = StackChangingNode.AddsTo.values().filterIsStackChanging()
 fun inlineStackArgs(node: BaseNode): Boolean {
-    var changed = false
+    if (node.outputs.size != 1) return false
+    if (node !is StackChangingNode) return false
 
-    if (node.outputs.size == 1 && node is LiteralNode) {
-        val nextNode = node.outputs[0]
-        if (nextNode.inputs.size == 1 && nextNode is ConsumesStack) {
-            val nextNodeArguments = nextNode.arguments.filter { it.argument is StackChangingNode.StackArgument }
-            if (nextNodeArguments.isNotEmpty()) {
+    val inlinableNonStackDeps = node.hasNonStackDeps &&
+            !node.outputs[0].hasNonStackDeps &&
+            node.returns().map { it.addsTo }.filterIsStackChanging().size == 1 &&
+            node.arguments.isEmpty()
+    if (node !is LiteralNode && !inlinableNonStackDeps) return false
 
-                val outputsByAddTo = changingAddTos
-                        .map { changingAddTo ->
-                            changingAddTo to node.returns()
-                                    .filter { it.addsTo == changingAddTo }
-                                    .filter { !it.consumed }
-                                    .asReversed()
-                        }
-                        .toMap()
+    val nextNode = node.outputs[0]
 
-                val hasAllArgs = nextNodeArguments.all { holder ->
-                    holder.argument.let {
-                        if (it is StackChangingNode.StackArgument) {
-                            outputsByAddTo[it.addsTo]!!.size > it.depth
-                        } else {
-                            true
-                        }
-                    }
-                }
+    if (nextNode.inputs.size != 1 || nextNode !is ConsumesStack) return false
 
-                if (hasAllArgs) {
-                    assert(node.arguments.isEmpty()) // LiteralNodes have no dependencies
-                    changed = true
+    val nextNodeArguments = nextNode.arguments.filter { it.argument is StackChangingNode.StackArgument }
+    if (nextNodeArguments.isEmpty()) return false
 
-                    val maxConsumedDepths = changingAddTos.map { it to -1 }.toMap().toMutableMap()
+    val outputsByAddTo = changingAddTos
+            .map { changingAddTo ->
+                changingAddTo to node.returns()
+                        .filter { it.addsTo == changingAddTo }
+                        .filter { !it.consumed }
+                        .asReversed()
+            }
+            .toMap()
 
-                    nextNodeArguments.forEach { holder ->
-                        holder.argument = holder.argument.let {
-                            if (it is StackChangingNode.StackArgument) {
-                                val compatibleOutputs = outputsByAddTo[it.addsTo]!!
-                                val inlinedReturn = compatibleOutputs[it.depth]
-                                maxConsumedDepths[it.addsTo] = max(maxConsumedDepths[it.addsTo]!!, it.depth)
-                                node.markReturnAsConsumed(inlinedReturn.index)
-                                StackChangingNode.LiteralArgument(inlinedReturn.value)
-                            } else {
-                                it
-                            }
-                        }
-                    }
-                    changingAddTos.forEach { changingAddTo ->
-                        val allReturns = node.returns()
-                                .filter { it.addsTo == changingAddTo }
-                                .asReversed()
-                        if (allReturns.isNotEmpty()) {
-                            if (allReturns.subList(0, maxConsumedDepths[changingAddTo]!! + 1).any { !it.consumed })
-                                throw AssertionError()
-                        }
-                    }
-                    assert(nextNode.arguments.all { it.argument is StackChangingNode.LiteralArgument })
-
-                    tryLiteralizeNextNode(node)
-                }
+    val hasAllArgs = nextNodeArguments.all { holder ->
+        holder.argument.let {
+            if (it is StackChangingNode.StackArgument) {
+                outputsByAddTo[it.addsTo]!!.size > it.depth
+            } else {
+                true
             }
         }
     }
-    return changed
+
+    if (!hasAllArgs) return false
+
+    assert(node.arguments.isEmpty()) // LiteralNodes have no dependencies
+
+    val maxConsumedDepths = changingAddTos.map { it to -1 }.toMap().toMutableMap()
+
+    nextNodeArguments.forEach { holder ->
+        holder.argument = holder.argument.let {
+            if (it is StackChangingNode.StackArgument) {
+                val compatibleOutputs = outputsByAddTo[it.addsTo]!!
+                val inlinedReturn = compatibleOutputs[it.depth]
+                maxConsumedDepths[it.addsTo] = max(maxConsumedDepths[it.addsTo]!!, it.depth)
+                node.markReturnAsConsumed(inlinedReturn.index)
+                StackChangingNode.LiteralArgument(inlinedReturn.value)
+            } else {
+                it
+            }
+        }
+    }
+    changingAddTos.forEach { changingAddTo ->
+        val allReturns = node.returns()
+                .filter { it.addsTo == changingAddTo }
+                .asReversed()
+        if (allReturns.isNotEmpty()) {
+            if (allReturns.subList(0, maxConsumedDepths[changingAddTo]!! + 1).any { !it.consumed })
+                throw AssertionError()
+        }
+    }
+    nextNode.hasNonStackDeps = nextNode.hasNonStackDeps || node.hasNonStackDeps
+
+    assert(nextNode.arguments.all { it.argument is StackChangingNode.LiteralArgument })
+
+    tryLiteralizeNextNode(node)
+    return true
 }
 
 private fun tryLiteralizeNextNode(node: BaseNode): Boolean {
@@ -685,33 +687,33 @@ fun joinNextLiteralNodes(nodeBeforeLiteral: BaseNode): Boolean {
     nodeBeforeLiteral.outputs
             .forEach { node ->
         if (node.outputs.size > 0) {
-            val nextNode = node.nextNode
-            if (node is LiteralNode && node.outputs.size == 1
-                    && nextNode is LiteralNode && node.inputs.size == 1) {
+                val nextNode = node.nextNode
+                if (node is LiteralNode && node.outputs.size == 1
+                        && nextNode is LiteralNode && node.inputs.size == 1) {
 
-                val literalPairs = ArrayList<Pair<String, StackChangingNode.AddsTo>>()
-                literalPairs.addAll(prototypesFromReturns(node.returns()))
-                literalPairs.addAll(prototypesFromReturns(nextNode.returns()))
+                    val literalPairs = ArrayList<Pair<String, StackChangingNode.AddsTo>>()
+                    literalPairs.addAll(prototypesFromReturns(node.returns()))
+                    literalPairs.addAll(prototypesFromReturns(nextNode.returns()))
 
-                val newNode = LiteralNode(literalPairs)
-                val oldInputs = ArrayList(node.inputs)
-                val oldNextNodeOutputs = ArrayList(nextNode.outputs.copy())
-                replaceNode(nextNode, newNode)
-                cutNode(node)
+                    val newNode = LiteralNode(literalPairs)
+                    val oldInputs = ArrayList(node.inputs)
+                    val oldNextNodeOutputs = ArrayList(nextNode.outputs.copy())
+                    replaceNode(nextNode, newNode)
+                    cutNode(node)
 
-                assert(oldInputs.all {
-                    !it.outputs.contains(node)
-                            && !it.outputs.contains(nextNode)
-                            && it.outputs.contains(newNode)
-                })
-                assert(oldNextNodeOutputs.all {
-                    !it.inputs.contains(node)
-                            && !it.inputs.contains(nextNode)
-                            && it.inputs.contains(newNode)
-                })
+                    assert(oldInputs.all {
+                        !it.outputs.contains(node)
+                                && !it.outputs.contains(nextNode)
+                                && it.outputs.contains(newNode)
+                    })
+                    assert(oldNextNodeOutputs.all {
+                        !it.inputs.contains(node)
+                                && !it.inputs.contains(nextNode)
+                                && it.inputs.contains(newNode)
+                    })
 
-                changed = true
-            }
+                    changed = true
+                }
         }
     }
     return changed
@@ -766,8 +768,8 @@ fun recurse(
 
 fun convertNodeToText(nextNode: BaseNode): String {
     assert(nextNode !is LabelNode)
-    assert(!nextNode.asText.contains("stack["))
-    assert(nextNode.asText.trim() != ";")
+// TODO:   assert(!nextNode.asText.contains("stack["))
+// TODO:   assert(nextNode.asText.trim() != ";")
     return nextNode.asText
 }
 

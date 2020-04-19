@@ -26,7 +26,7 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
     /**
      * Does it access anything besides stacks? E.g. does it change variable(s), changes or requests world state
      */
-    open val hasNonStackDeps: Boolean = false
+    open var hasNonStackDeps: Boolean = false
 
     fun addInput(node: BaseNode) {
         assert(!_inputs.contains(node) || this == nullNode || node == nullNode)
@@ -154,7 +154,7 @@ class BeginNode: BaseNode("(BEGIN)", 1)
 class EndNode: BaseNode("(END)", 0)
 
 open class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1) {
-    override val hasNonStackDeps: Boolean = true
+    override var hasNonStackDeps: Boolean = true
 }
 
 class TextNode(asText: String): BaseNode(asText, 1)
@@ -279,13 +279,28 @@ abstract class StackChangingNode(
             }
             return args
         }
+
+        fun Array<AddsTo>.filterIsStackChanging(): List<AddsTo> {
+            return filter(::isStackChanging)
+        }
+
+        fun Iterable<AddsTo>.filterIsStackChanging(): List<AddsTo> {
+            return filter(::isStackChanging)
+        }
+
+        private fun isStackChanging(it: AddsTo): Boolean {
+            return when (it) {
+                DONT_PUSHES_TO_STACK -> false
+                ADDS_TO_NORMAL_STACK, ADDS_TO_STRING_STACK -> true
+            }
+        }
     }
 }
 
 class CustomStackConsumingNode(
         numArgs: Int,
         addsTo: AddsTo,
-        override val hasNonStackDeps: Boolean = false,
+        override var hasNonStackDeps: Boolean = false,
         private val transformer: (List<ArgumentHolder>) -> String
 )
 : StackChangingNode(consumesNormalStack(numArgs), arrayOf(ReturnPrototype(addsTo, { arguments -> transformer(arguments) })))
@@ -294,7 +309,7 @@ open class FunctionNode(
         val name: String,
         arguments: List<ArgumentHolder>,
         addsTo: AddsTo,
-        override val hasNonStackDeps: Boolean = false
+        override var hasNonStackDeps: Boolean = false
 )
     : StackChangingNode(
         arguments,
@@ -311,6 +326,10 @@ class OperatorNode(val name: String, numArgs: Int)
         })
 )
 
+/**
+ * Node containing only constants and inlined expressions to be pushed on a stack.
+ * Contents inside a literal node might be inlined or reordered
+ */
 class LiteralNode(pairs: List<Pair<String, AddsTo>>)
     : StackChangingNode(
         emptyList(),
