@@ -554,13 +554,12 @@ fun inlineStackArgs(node: BaseNode): Boolean {
     if (node.outputs.size != 1) return false
     if (node !is StackChangingNode) return false
 
-    val inlinableNonStackDeps = node.hasNonStackDeps &&
-            !node.outputs[0].hasNonStackDeps &&
-            node.returns().map { it.addsTo }.filterIsStackChanging().size == 1 &&
-            node.arguments.isEmpty()
-    if (node !is LiteralNode && !inlinableNonStackDeps) return false
-
     val nextNode = node.outputs[0]
+    val inlinableNonStackDeps = node.hasNonStackDeps &&
+            !nextNode.hasNonStackDeps &&
+            node.returns().map { it.addsTo }.filterIsStackChanging().size == 1 &&
+            node.arguments.none { it.argument !is StackChangingNode.LiteralArgument }
+    if (node !is LiteralNode && !inlinableNonStackDeps) return false
 
     if (nextNode.inputs.size != 1 || nextNode !is ConsumesStack) return false
 
@@ -576,47 +575,31 @@ fun inlineStackArgs(node: BaseNode): Boolean {
             }
             .toMap()
 
-    val hasAllArgs = nextNodeArguments.all { holder ->
-        holder.argument.let {
-            if (it is StackChangingNode.StackArgument) {
-                outputsByAddTo[it.addsTo]!!.size > it.depth
-            } else {
-                true
-            }
-        }
+    assert(node.arguments.none { it.argument !is StackChangingNode.LiteralArgument })
+
+    var depthAdjustment = 0
+    nextNodeArguments
+            .filter { it.argument is StackChangingNode.StackArgument }
+            .sortedBy { (it.argument as StackChangingNode.StackArgument).depth }
+            .forEach { holder ->
+                holder.argument = holder.argument.let {
+                    val argument = it as StackChangingNode.StackArgument
+
+                    val compatibleOutputs = outputsByAddTo.getValue(argument.addsTo)
+                    if (compatibleOutputs.size <= argument.depth) {
+                        return@let argument.withDepth(argument.depth - depthAdjustment)
+                    }
+
+                    // arg value is known
+                    val inlinedReturn = compatibleOutputs[argument.depth]
+                    assert(!inlinedReturn.consumed)
+                    node.markReturnAsConsumed(inlinedReturn.index)
+                    depthAdjustment += 1
+                    StackChangingNode.LiteralArgument(inlinedReturn.value)
+                }
     }
 
-    if (!hasAllArgs) return false
-
-    assert(node.arguments.isEmpty()) // LiteralNodes have no dependencies
-
-    val maxConsumedDepths = changingAddTos.map { it to -1 }.toMap().toMutableMap()
-
-    nextNodeArguments.forEach { holder ->
-        holder.argument = holder.argument.let {
-            if (it is StackChangingNode.StackArgument) {
-                val compatibleOutputs = outputsByAddTo[it.addsTo]!!
-                val inlinedReturn = compatibleOutputs[it.depth]
-                maxConsumedDepths[it.addsTo] = max(maxConsumedDepths[it.addsTo]!!, it.depth)
-                node.markReturnAsConsumed(inlinedReturn.index)
-                StackChangingNode.LiteralArgument(inlinedReturn.value)
-            } else {
-                it
-            }
-        }
-    }
-    changingAddTos.forEach { changingAddTo ->
-        val allReturns = node.returns()
-                .filter { it.addsTo == changingAddTo }
-                .asReversed()
-        if (allReturns.isNotEmpty()) {
-            if (allReturns.subList(0, maxConsumedDepths[changingAddTo]!! + 1).any { !it.consumed })
-                throw AssertionError()
-        }
-    }
     nextNode.hasNonStackDeps = nextNode.hasNonStackDeps || node.hasNonStackDeps
-
-    assert(nextNode.arguments.all { it.argument is StackChangingNode.LiteralArgument })
 
     tryLiteralizeNextNode(node)
     return true
@@ -770,7 +753,12 @@ fun convertNodeToText(nextNode: BaseNode): String {
     assert(nextNode !is LabelNode)
 // TODO:   assert(!nextNode.asText.contains("stack["))
 // TODO:   assert(nextNode.asText.trim() != ";")
-    return nextNode.asText
+    val nodeText = nextNode.asText
+    return if (nextNode !is TextNode) {
+        "[${nextNode::class.simpleName}(dng=${nextNode.hasNonStackDeps})]" + nodeText
+    } else {
+        nodeText
+    }
 }
 
 fun convertToTextNodes(node: BaseNode): Boolean {

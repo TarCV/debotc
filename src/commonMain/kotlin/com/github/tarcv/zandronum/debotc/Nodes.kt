@@ -247,6 +247,8 @@ abstract class StackChangingNode(
     interface StackArgument {
         val addsTo: AddsTo
         val depth: Int
+
+        fun withDepth(depth: Int): Argument
     }
 
     class NormalStackArgument(override val depth: Int): Argument(), StackArgument {
@@ -257,11 +259,15 @@ abstract class StackChangingNode(
         override val addsTo: AddsTo = ADDS_TO_NORMAL_STACK
 
         override fun toString(): String = "stack[$depth]"
+
+        override fun withDepth(depth: Int) = NormalStackArgument(depth)
     }
     class StringStackArgument(override val depth: Int): Argument(), StackArgument {
         init {
             assert(depth >= 0)
         }
+
+        override fun withDepth(depth: Int) = StringStackArgument(depth)
 
         override val addsTo: AddsTo = ADDS_TO_STRING_STACK
 
@@ -342,10 +348,10 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
     }
 }
 
-class DropStackNode(override val asText: String)
+class DropStackNode
     : StackChangingNode(
         listOf(createNormalStackArgument(0)),
-        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
+        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK, { arguments -> "${arguments[0]} // result ignored" }))
 )
 
 open class LabelNode(byte: Int) : BaseNode("label$byte", 1)
