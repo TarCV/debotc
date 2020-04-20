@@ -1,5 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
+import com.github.tarcv.zandronum.debotc.BaseNode.HasNonStackDeps.NON_STACK_DEPS
 import com.github.tarcv.zandronum.debotc.BotCommandReturnType.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder
@@ -124,7 +125,7 @@ enum class BotCommand(
             RETURNVAL_VOID -> DONT_PUSHES_TO_STACK
         }
 
-        return FunctionNode(readableName, args, addsTo, hasNonStackDeps = true)
+        return FunctionNode(readableName, args, addsTo, NON_STACK_DEPS)
     }
 }
 

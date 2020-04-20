@@ -1,5 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
+import com.github.tarcv.zandronum.debotc.BaseNode.HasNonStackDeps.NON_STACK_DEPS
 import com.github.tarcv.zandronum.debotc.BotCommand.NUM_BOTCMDS
 import com.github.tarcv.zandronum.debotc.DataHeaders.*
 import com.github.tarcv.zandronum.debotc.LiteralNode.Companion.consumedMarker
@@ -555,8 +556,8 @@ fun inlineStackArgs(node: BaseNode): Boolean {
     if (node !is StackChangingNode) return false
 
     val nextNode = node.outputs[0]
-    val inlinableNonStackDeps = node.hasNonStackDeps &&
-            !nextNode.hasNonStackDeps &&
+    val inlinableNonStackDeps = node.hasNonStackDeps == NON_STACK_DEPS &&
+            nextNode.hasNonStackDeps != NON_STACK_DEPS &&
             node.returns().map { it.addsTo }.filterIsStackChanging().size == 1 &&
             node.arguments.none { it.argument !is StackChangingNode.LiteralArgument }
     if (node !is LiteralNode && !inlinableNonStackDeps) return false
@@ -613,7 +614,7 @@ private fun tryLiteralizeNextNode(node: BaseNode): Boolean {
             // We can only replace function nodes (nodes returning values) with literal
             //  as far as are not dangerous (has no side effects)
             if (nextNode is StackChangingNode && nextNode !is LiteralNode
-                    && nextNode.outputs.size == 1 && !nextNode.hasNonStackDeps) {
+                    && nextNode.outputs.size == 1 && nextNode.hasNonStackDeps != NON_STACK_DEPS) {
                 val allArgsAreStatic = nextNode.arguments.all { it.argument is StackChangingNode.LiteralArgument }
 
                 if (allArgsAreStatic) {
@@ -753,12 +754,7 @@ fun convertNodeToText(nextNode: BaseNode): String {
     assert(nextNode !is LabelNode)
 // TODO:   assert(!nextNode.asText.contains("stack["))
 // TODO:   assert(nextNode.asText.trim() != ";")
-    val nodeText = nextNode.asText
-    return if (nextNode !is TextNode) {
-        "[${nextNode::class.simpleName}(dng=${nextNode.hasNonStackDeps})]" + nodeText
-    } else {
-        nodeText
-    }
+    return nextNode.asText
 }
 
 fun convertToTextNodes(node: BaseNode): Boolean {
