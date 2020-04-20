@@ -393,7 +393,7 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
 class DropStackNode
     : StackChangingNode(
         listOf(createNormalStackArgument(0)),
-        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK) { arguments -> "${arguments[0]} // result ignored" })
+        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK) { arguments -> "${arguments[0]} /* result ignored */" })
 )
 
 open class LabelNode(byte: Int) : BaseNode("label$byte", 1) {

@@ -237,7 +237,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} = ${stackArgs[0]};"
+                "\$global${command.arguments[0]} = ${stackArgs[0]}"
             }
         }
     },
@@ -245,7 +245,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} += ${stackArgs[0]};"
+                "\$global${command.arguments[0]} += ${stackArgs[0]}"
             }
         }
     },
@@ -253,7 +253,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} -= ${stackArgs[0]};"
+                "\$global${command.arguments[0]} -= ${stackArgs[0]}"
             }
         }
     },
@@ -261,7 +261,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} *= ${stackArgs[0]};"
+                "\$global${command.arguments[0]} *= ${stackArgs[0]}"
             }
         }
     },
@@ -269,7 +269,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} /= ${stackArgs[0]};"
+                "\$global${command.arguments[0]} /= ${stackArgs[0]}"
             }
         }
     },
@@ -277,7 +277,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineGlobalVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$global${command.arguments[0]} %= ${stackArgs[0]};"
+                "\$global${command.arguments[0]} %= ${stackArgs[0]}"
             }
         }
     },
@@ -285,7 +285,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) {
-                "\$local${command.arguments[0]}++;"
+                "\$local${command.arguments[0]}++"
             }
         }
     },
@@ -293,7 +293,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(0, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) {
-                "\$local${command.arguments[0]}--;"
+                "\$local${command.arguments[0]}--"
             }
         }
     },
@@ -301,7 +301,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} = ${stackArgs[0]};"
+                "\$local${command.arguments[0]} = ${stackArgs[0]}"
             }
         }
     },
@@ -309,7 +309,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} += ${stackArgs[0]};"
+                "\$local${command.arguments[0]} += ${stackArgs[0]}"
             }
         }
     },
@@ -317,7 +317,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} -= ${stackArgs[0]};"
+                "\$local${command.arguments[0]} -= ${stackArgs[0]}"
             }
         }
     },
@@ -325,7 +325,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} *= ${stackArgs[0]};"
+                "\$local${command.arguments[0]} *= ${stackArgs[0]}"
             }
         }
     },
@@ -333,7 +333,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} /= ${stackArgs[0]};"
+                "\$local${command.arguments[0]} /= ${stackArgs[0]}"
             }
         }
     },
@@ -341,7 +341,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             vmState.defineStateVariable(command.arguments[0])
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
-                "\$local${command.arguments[0]} %= ${stackArgs[0]};"
+                "\$local${command.arguments[0]} %= ${stackArgs[0]}"
             }
         }
     },
@@ -363,7 +363,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}]++;"
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}]++"
             }
         }
     },
@@ -371,49 +371,49 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(1, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}]--;" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}]--" }
         }
     },
     DH_ASSIGNGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] = ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] = ${stackArgs[1]}" }
         }
     },
     DH_ADDGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] += ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] += ${stackArgs[1]}" }
         }
     },
     DH_SUBGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] -= ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] -= ${stackArgs[1]}" }
         }
     },
     DH_MULGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] *= ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] *= ${stackArgs[1]}" }
         }
     },
     DH_DIVGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] /= ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] /= ${stackArgs[1]}" }
         }
     },
     DH_MODGLOBALARRAY(1) {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return CustomStackConsumingNode(2, DONT_PUSHES_TO_STACK, NON_STACK_DEPS) { stackArgs ->
                 vmState.defineGlobalArray(command.arguments[0])
-                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] %= ${stackArgs[1]};" }
+                "\$globalArray${command.arguments[0]}[${stackArgs[0]}] %= ${stackArgs[1]}" }
         }
     },
     DH_PUSHGLOBALARRAY(1) {
