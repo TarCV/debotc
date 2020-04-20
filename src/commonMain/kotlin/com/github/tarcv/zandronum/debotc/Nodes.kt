@@ -178,6 +178,11 @@ interface ConsumesStack {
     val arguments: List<ArgumentHolder>
 }
 
+/**
+ * Node that pushes its returns to the stack.
+ * Note: such nodes are completely defined by their returnPrototypes and args,
+ *   they can't have any special asText implementations in implementing classes.
+ */
 abstract class StackChangingNode(
         override val arguments: List<ArgumentHolder>,
         private val returnPrototypes: Array<ReturnPrototype>,
@@ -236,16 +241,17 @@ abstract class StackChangingNode(
             get() = isReturnConsumed(index)
     }
 
-    override val asText: String
+    final override val asText: String
         get() = returnsAsText(this)
 
     abstract class Argument
 
     override val hasNonStackDeps: HasNonStackDeps
         get() {
-            val hasNonStackReturns = returns()
-                    .filter { !it.consumed }
-                    .any { it.hasNonStackDeps == NON_STACK_DEPS }
+            val unconsumedReturns = returns().filter { !it.consumed }
+            if (unconsumedReturns.isEmpty()) return SAFE_DEPS // no unconsumed returns means this node is empty and thus safe
+
+            val hasNonStackReturns = unconsumedReturns.any { it.hasNonStackDeps == NON_STACK_DEPS }
             if (hasNonStackReturns) return NON_STACK_DEPS
 
             val hasNonStackArgs = arguments
@@ -401,15 +407,6 @@ interface JumpingNode {
 open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label$targetByte", 2), JumpingNode {
     override val hasNonStackDeps: HasNonStackDeps = SAFE_DEPS
 
-    override var jumpTargetNode: BaseNode
-        get() = outputs[1]
-        set(value) {
-            outputs[1] = value
-        }
-}
-
-class TerminatingFunctionNode(name: String, arguments: List<ArgumentHolder>, addsTo: AddsTo)
-    : FunctionNode(name, arguments, addsTo), JumpingNode {
     override var jumpTargetNode: BaseNode
         get() = outputs[1]
         set(value) {

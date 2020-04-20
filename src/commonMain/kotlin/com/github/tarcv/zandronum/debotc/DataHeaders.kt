@@ -431,10 +431,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
                             ReturnPrototype(ADDS_TO_NORMAL_STACK) { arguments -> "${arguments[1]}"},
                             ReturnPrototype(ADDS_TO_NORMAL_STACK) { arguments -> "${arguments[0]}"}
                     )
-            ) {
-                override val asText: String
-                    get() = "(swap last stack items)"
-            }
+            ) {}
         }
     },
     DH_DUP{
@@ -446,10 +443,7 @@ enum class DataHeaders(requiredArgs: Int = 0)
                             ReturnPrototype(ADDS_TO_NORMAL_STACK) { arguments -> "${arguments[0]}"}
                     )
 
-            ) {
-                override val asText: String
-                    get() = "(duplicate stack item)"
-            }
+            ) {}
         }
     },
     DH_ARRAYSET{
@@ -469,5 +463,5 @@ enum class DataHeaders(requiredArgs: Int = 0)
 }
 
 private fun dropFromStack(): BaseNode {
-    return DropStackNode("// item dropped from stack")
+    return DropStackNode()
 }

@@ -9,7 +9,6 @@ import com.github.tarcv.zandronum.debotc.StackChangingNode.Companion.filterIsSta
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 import kotlin.text.RegexOption.*
-import kotlin.math.max
 
 @ExperimentalUnsignedTypes
 class Decompiler {
@@ -118,7 +117,6 @@ class Decompiler {
         )
 
         val gotos = ArrayList<AbstractGotoNode>()
-        val terminatingCommands = ArrayList<TerminatingFunctionNode>()
         val labels = HashMap<Int, LabelNode>()
 
         val nodeHolder = NodeHolder()
@@ -136,8 +134,6 @@ class Decompiler {
             nodeHolder.add(newNode)
             if (newNode is AbstractGotoNode) {
                 gotos.add(newNode)
-            } else if (newNode is TerminatingFunctionNode) {
-                terminatingCommands.add(newNode)
             }
 
             if (event.commands.lastIndex == index && labelPositions.contains(code.positionAfter)) {
@@ -159,10 +155,6 @@ class Decompiler {
             if (it is GotoNode) {
                 replaceGotoWithEdge(it)
             }
-        }
-        terminatingCommands.forEach {
-            it.jumpTargetNode = endNode
-            replaceGotoWithEdge(it)
         }
 
         return nodeHolder.nodes
@@ -557,7 +549,6 @@ fun inlineStackArgs(node: BaseNode): Boolean {
 
     val nextNode = node.outputs[0]
     val inlinableNonStackDeps = node.hasNonStackDeps == NON_STACK_DEPS &&
-            nextNode.hasNonStackDeps != NON_STACK_DEPS &&
             node.returns().map { it.addsTo }.filterIsStackChanging().size == 1 &&
             node.arguments.none { it.argument !is StackChangingNode.LiteralArgument }
     if (node !is LiteralNode && !inlinableNonStackDeps) return false
@@ -580,6 +571,17 @@ fun inlineStackArgs(node: BaseNode): Boolean {
 
     var depthAdjustment = 0
     nextNodeArguments
+            .takeWhile { holder ->
+                if (node.hasNonStackDeps != NON_STACK_DEPS) return@takeWhile true
+
+                holder.argument.let { argument ->
+                    if (argument !is StackChangingNode.LiteralArgument) {
+                        true
+                    } else {
+                        argument.hasNonStackDeps != NON_STACK_DEPS
+                    }
+                }
+            }
             .filter { it.argument is StackChangingNode.StackArgument }
             .sortedBy { (it.argument as StackChangingNode.StackArgument).depth }
             .forEach { holder ->
@@ -596,11 +598,9 @@ fun inlineStackArgs(node: BaseNode): Boolean {
                     assert(!inlinedReturn.consumed)
                     node.markReturnAsConsumed(inlinedReturn.index)
                     depthAdjustment += 1
-                    StackChangingNode.LiteralArgument(inlinedReturn.value)
+                    StackChangingNode.LiteralArgument(inlinedReturn.value, inlinedReturn.hasNonStackDeps)
                 }
     }
-
-    nextNode.hasNonStackDeps = nextNode.hasNonStackDeps || node.hasNonStackDeps
 
     tryLiteralizeNextNode(node)
     return true
@@ -629,7 +629,7 @@ private fun tryLiteralizeNextNode(node: BaseNode): Boolean {
                         }
                     }
                     if (changingReturnsCount != 0) {
-                        val replacingNode = LiteralNode(nextNode.returns().map { it.value to it.addsTo })
+                        val replacingNode = LiteralNode(prototypesFromReturns(nextNode.returns()))
                         replaceNode(nextNode, replacingNode)
                         changed = true
                     }

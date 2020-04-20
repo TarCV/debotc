@@ -1,5 +1,6 @@
 package com.github.tarcv.zandronum.debotc
 
+import com.github.tarcv.zandronum.debotc.BaseNode.HasNonStackDeps.NON_STACK_DEPS
 import com.github.tarcv.zandronum.debotc.Decompiler.Companion.compactNodes
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo
 import kotlin.test.Test
@@ -36,8 +37,8 @@ class CounterexamplesTest {
     fun testNoInlinesAcrossStatements2() {
         val rootNode = BeginNode()
         rootNode
-                .attachNode(FunctionNode("Roam", emptyList(), AddsTo.ADDS_TO_NORMAL_STACK, hasNonStackDeps = true))
-                .attachNode(DropStackNode("Drop"))
+                .attachNode(FunctionNode("Roam", emptyList(), AddsTo.ADDS_TO_NORMAL_STACK, NON_STACK_DEPS))
+                .attachNode(DropStackNode())
                 .attachNode(FunctionNode("Function", emptyList(), AddsTo.DONT_PUSHES_TO_STACK))
                 .attachNode(EndNode())
         compactNodes(rootNode)
