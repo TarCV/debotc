@@ -752,8 +752,8 @@ fun recurse(
 
 fun convertNodeToText(nextNode: BaseNode): String {
     assert(nextNode !is LabelNode)
-// TODO:   assert(!nextNode.asText.contains("stack["))
-// TODO:   assert(nextNode.asText.trim() != ";")
+    assert(!nextNode.asText.contains("stack["))
+    assert(nextNode.asText.trim() != ";")
     return nextNode.asText
 }
 
