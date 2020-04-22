@@ -45,7 +45,7 @@ class CounterexamplesTest {
 
         val expectedStructureRoot = BeginNode()
         expectedStructureRoot
-                .attachNode(TextNode("Roam();${lineSeparator}// dropped 'Roam()';${lineSeparator}Function();"))
+                .attachNode(TextNode("Roam() /* result ignored */;${lineSeparator}Function();"))
                 .attachNode(EndNode())
 
         assertIsSameStructure(expectedStructureRoot, rootNode)

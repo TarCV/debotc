@@ -422,6 +422,9 @@ open class IfGotoNode(val condition: ArgumentHolder, targetByte: Int)
     override val arguments: List<ArgumentHolder>
         get() = listOf(condition)
 
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = NON_STACK_DEPS
+
     override val asText: String
         get() = "if (${condition.argument}) ${super.asText}"
 }
@@ -430,6 +433,9 @@ class IfNotGotoNode(val condition: ArgumentHolder, targetByte: Int)
     : AbstractGotoNode(targetByte), ConsumesStack {
     override val arguments: List<ArgumentHolder>
         get() = listOf(condition)
+
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = NON_STACK_DEPS
 
     override val asText: String
         get() = "if (! $condition) ${super.asText}"

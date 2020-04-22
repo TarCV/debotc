@@ -15,6 +15,9 @@ class SplitNode(vararg secondBranchNodes: BaseNode): BaseNode("Split", 2) {
                 }
         nodeJoiningBothBranches = secondBranchNodes.last()
     }
+
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = HasNonStackDeps.NON_STACK_DEPS
 }
 
 fun assertIsSameStructure(expectedStructureRoot: BeginNode, rootNode: BeginNode) {
