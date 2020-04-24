@@ -8,8 +8,8 @@ jobs:
       - checkout
       - run:
           name: Prepare APT permissions
-          command: sudo |
-            chmod -Rv go+rw /var/cache/apt
+          command: |
+            sudo chmod -Rv go+rw /var/cache/apt
       - restore_cache:
           keys:
             - deps-v2-{{ checksum "build.gradle" }}
