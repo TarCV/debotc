@@ -38,7 +38,7 @@ jobs:
       - run:
           name: "Prepare for publishing"
           command: |
-            
+            echo TODO
       - run:
           name: "Publish Release on GitHub"
           command: |
@@ -56,4 +56,4 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - release
