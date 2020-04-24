@@ -6,6 +6,10 @@ jobs:
       - image: circleci/openjdk:8-jdk-browsers
     steps:
       - checkout
+      - run:
+          name: Prepare APT permissions
+          command: sudo |
+            chmod -Rv go+rw /var/cache/apt
       - restore_cache:
           keys:
             - deps-v2-{{ checksum "build.gradle" }}
