@@ -19,7 +19,7 @@ jobs:
           name: Prepare APT permissions
           command: |
             sudo chmod -Rv ugo+rwx /var/cache/apt
-            sudo chown -R /var/cache/apt
+            sudo chown -Rv $(whoami) /var/cache/apt
       - restore_cache:
           keys:
             - apt-v2-
