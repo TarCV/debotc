@@ -21,7 +21,7 @@ jobs:
       - run:
           name: Install libncurses5
           # update cache ver when changing list here
-          command: apt-get install -y libncurses5
+          command: sudo apt-get install -y libncurses5
       - run:
           name: Cleanup cache
           command: |
@@ -30,7 +30,7 @@ jobs:
               if [ $(ls $pkg\_* | wc -l) -gt 1 ]; then
                 files=$(ls -vr $pkg\_*)
                 rmfiles=`echo $files | cut -d " " -f 2-`
-                rm -v $rmfiles
+                sudo rm -v $rmfiles
               fi
             done
       - save_cache:
@@ -60,7 +60,7 @@ jobs:
       - run:
           name: "Prepare for publishing"
           command: |
-            
+            echo TODO
       - run:
           name: "Publish Release on GitHub"
           command: |
@@ -78,4 +78,4 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - release
