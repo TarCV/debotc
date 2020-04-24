@@ -6,22 +6,22 @@ jobs:
       - image: circleci/openjdk:8-jdk-browsers
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - deps-v3-{{ checksum "build.gradle" }}
+            - deps-v3
+      - run:
+          name: Run Tests
+          command: ./gradlew jvmTest
+      - store_test_results:
+          path: build/test-results/test
       - run:
           name: Prepare APT permissions
           command: |
             sudo chmod -Rv go+rw /var/cache/apt
       - restore_cache:
           keys:
-            - deps-v2-{{ checksum "build.gradle" }}
-            - deps-v2
-      - run:
-          name: Run Tests
-          command: ./gradlew jvmTest
-      - store_test_results:
-          path: build/test-results/test
-      - restore_cache:
-          keys:
-            - apt-v1-
+            - apt-v2-
       - run:
           name: Install libncurses5
           # update cache ver when changing list here
@@ -38,7 +38,7 @@ jobs:
               fi
             done
       - save_cache:
-          key: apt-v1-{{ .Revision }}
+          key: apt-v2-{{ .Revision }}
           paths:
             - "/var/cache/apt"
       - run:
@@ -52,7 +52,7 @@ jobs:
           paths:
             - ~/.gradle
             - ~/.konan
-          key: deps-v2-{{ checksum "build.gradle" }}
+          key: deps-v3-{{ checksum "build.gradle" }}
 
   publish:
     docker:
