@@ -15,6 +15,28 @@ jobs:
           command: ./gradlew jvmTest
       - store_test_results:
           path: build/test-results/test
+      - restore_cache:
+          keys:
+            - apt-v1-
+      - run:
+          name: Install libncurses5
+          # update cache ver when changing list here
+          command: apt-get install -y libncurses5
+      - run:
+          name: Cleanup cache
+          command: |
+            cd /var/cache/apt/archives/
+            for pkg in `ls *.deb | cut -d _ -f 1 | sort -u`; do
+              if [ $(ls $pkg\_* | wc -l) -gt 1 ]; then
+                files=$(ls -vr $pkg\_*)
+                rmfiles=`echo $files | cut -d " " -f 2-`
+                rm -v $rmfiles
+              fi
+            done
+      - save_cache:
+          key: apt-v1-{{ .Revision }}
+          paths:
+            - "/var/cache/apt"
       - run:
           name: Build
           command: ./gradlew linuxMainBinaries
