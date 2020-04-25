@@ -47,6 +47,10 @@ enum class DataHeaders(requiredArgs: Int = 0)
     },
     DH_EVENT {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+
+        override fun describeReadableForDisasm(command: Command): String {
+            throw IllegalStateException("Should not happen")
+        }
     },
     DH_ENDONENTER {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
@@ -59,6 +63,8 @@ enum class DataHeaders(requiredArgs: Int = 0)
     },
     DH_ENDEVENT {
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode = throw IllegalStateException()
+
+        override fun describeReadableForDisasm(command: Command): String = "}"
     },
     DH_IFGOTO(1) {
         override fun parseCommand(parseState: ParseState): Command? {
@@ -301,6 +307,11 @@ enum class DataHeaders(requiredArgs: Int = 0)
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return LiteralNode("\"${vmState.strings[command.arguments[0]]}\"", ADDS_TO_STRING_STACK)
         }
+
+        override fun describeReadableForDisasm(command: Command): String {
+            val cmd = command as Command
+            return "stringStack.push(strings[${cmd.arguments[0]}])"
+        }
     },
     DH_PUSHGLOBALVAR {
         override fun parseCommand(parseState: ParseState): Command? {
@@ -508,6 +519,10 @@ enum class DataHeaders(requiredArgs: Int = 0)
             return parseCommandWithArg(parseState, this, 2, isGoto = true)
         }
 
+        override fun describeReadableForDisasm(command: Command): String {
+            return "if (stack[0] == ${command.arguments[0]}) goto label${String.format("%X", command.arguments[1])}"
+        }
+
         override fun processAndCreateNode(command: Command, vmState: VmState): BaseNode {
             return if (vmState.previousCommand != DH_CASEGOTO) {
                 SwitchAndCaseNode(createNormalStackArgument(0), command.arguments[0].toString(), command.arguments[1])
@@ -681,7 +696,41 @@ enum class DataHeaders(requiredArgs: Int = 0)
     abstract fun processAndCreateNode(command: Command, vmState: VmState): BaseNode
 
     open fun parseCommand(parseState: ParseState): Command? = null
+
+    open fun describeReadableForDisasm(command: Command): String {
+        var text = processAndCreateNode(command, VmState(emptyList(), HashSet(), HashSet(), HashSet())).asText
+        while (text.endsWith(";")) {
+            text = text.removeSuffix(";").trim()
+        }
+        while( text.startsWith("(") && text.endsWith(")")) {
+            text = text.removePrefix("(").removeSuffix(")").trim()
+        }
+        if (text.startsWith("stack = ")) {
+            text = "stack.push( ${text.removePrefix("stack = ")} )"
+        }
+        if (text.contains("stack[") || text.contains("stringStack")) {
+            text += " // stack arguments are popped by the function"
+        }
+        text = text.replace(Regex("(?<=[\\s|^])goto label(?=[\\dA-F])"), "goto 0x")
+        return text
+    }
+
+    fun describeForDisasm(command: Command?): DisasmDescription {
+        if (command != null) {
+            return DisasmDescription(
+                    command.arguments.joinToString(", ") ?: "",
+                    describeReadableForDisasm(command)
+            )
+        } else {
+            throw IllegalStateException("Should not be called for non commands")
+        }
+    }
 }
+
+class DisasmDescription(
+        val arguments: String,
+        val readable: String
+)
 
 private fun dropFromStack(): BaseNode {
     return DropStackNode("// item dropped from stack")

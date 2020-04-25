@@ -316,13 +316,13 @@ class DropStackNode(override val asText: String)
         arrayOf(ReturnPrototype(DOES_NOT_PUSH_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
 )
 
-open class LabelNode(byte: Int) : BaseNode("label$byte", 1)
+open class LabelNode(byte: Int) : BaseNode("label${String.format("%X", byte)}", 1)
 
 interface JumpingNode {
     var jumpTargetNode: BaseNode
 }
 
-open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label$targetByte", 2), JumpingNode {
+open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label${String.format("%X", targetByte)}", 2), JumpingNode {
     override var jumpTargetNode: BaseNode
         get() = outputs[1]
         set(value) {

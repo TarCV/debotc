@@ -312,7 +312,7 @@ class Decompiler {
 
         gotos.forEach {
             val targetByte = it.targetByte
-            it.jumpTargetNode = labels[targetByte] ?: throw IllegalStateException("Label$targetByte not found")
+            it.jumpTargetNode = labels[targetByte] ?: throw IllegalStateException("Label${String.format("%X", targetByte)} not found")
 
             if (it is GotoNode) {
                 replaceGotoWithEdge(it)
@@ -365,12 +365,14 @@ class Decompiler {
 
             if (disasmDumper != null) {
                 disasmDumper.println()
-                disasmDumper.print("$offset: ${commandHeader.name} ")
+                disasmDumper.print("${String.format("%08X", offset)} | ${commandHeader.name} ")
             }
 
             val command = commandHeader.parseCommand(parseState)
+
+            val disasmDescription: DisasmDescription
             if (command == null) {
-                when (commandHeader) {
+                disasmDescription = when (commandHeader) {
                     DH_ONENTER, DH_MAINLOOP, DH_ONEXIT -> parseEventHandler(commandHeader)
                     DH_EVENT -> parseEvent(data)
                     DH_ENDONENTER, DH_ENDMAINLOOP, DH_ENDONEXIT, DH_ENDEVENT -> finalizeEvent()
@@ -382,23 +384,37 @@ class Decompiler {
                     else -> throw IllegalStateException("Unexpected header $commandHeader at ${data.offset}")
                 }
             } else {
+                disasmDescription = commandHeader.describeForDisasm(command)
                 currentState.currentEvent.addCommand(command)
+            }
+
+            if (disasmDumper != null) {
+                disasmDumper.print(disasmDescription.arguments)
+                disasmDumper.print(" ".repeat(max(0, 30 - disasmDescription.arguments.length - commandHeader.name.length)))
+                disasmDumper.print(" | ${disasmDescription.readable}")
             }
         }
     }
 
-    private fun parseScriptVarList(): Command? {
-        currentState.currentEvent.varList = data.readSigned32()
-        return null
+    private fun parseScriptVarList(): DisasmDescription {
+        val varList = data.readSigned32()
+        currentState.currentEvent.varList = varList
+        return DisasmDescription(
+                varList.toString(),
+                "// define $varList script variables"
+        )
     }
 
-    private fun finalizeEvent(): Command? {
+    private fun finalizeEvent(): DisasmDescription {
         eventEnds.add((data.offset - 4).toString())
         currentState.currentEvent.finalize()
-        return null
+        return DisasmDescription(
+                "",
+                "}"
+        )
     }
 
-    private fun addStrings(): Command? {
+    private fun addStrings(): DisasmDescription {
         val numStrings = data.readSigned32()
         if (strings.isNotEmpty()) {
             throw IllegalStateException("Strings were already added")
@@ -408,10 +424,15 @@ class Decompiler {
             val str = data.readSzString(length)
             strings.add(str)
         }
-        return null
+
+        val joinedStrings = strings.joinToString(", ") { "\"$it\"" }
+        return DisasmDescription(
+                "$numStrings, $joinedStrings",
+                "strings = {$joinedStrings}"
+        )
     }
 
-    private fun parseStateName(data: Data) {
+    private fun parseStateName(data: Data): DisasmDescription {
         val size = data.readSigned32()
         val name = data.readSzString(size)
         val stateIndexHeader = data.readSigned32()
@@ -424,10 +445,16 @@ class Decompiler {
             throw IllegalStateException("Illegal stateIndex: $stateIndex")
         }
 
-        states.add(com.github.tarcv.zandronum.debotc.State(name, stateIndex))
+        val state = State(name, stateIndex)
+        states.add(state)
+
+        return DisasmDescription(
+                "\"$name\" (DH_STATEIDX $stateIndex)",
+                "state ${state.name} {"
+        )
     }
 
-    private fun parseEvent(data: Data) {
+    private fun parseEvent(data: Data): DisasmDescription {
         val eventType: BotEventType = toEnum(data.readSigned32())
         if (currentState.global) {
             if (currentState.events.size >= MAX_NUM_GLOBAL_EVENTS) {
@@ -438,15 +465,27 @@ class Decompiler {
                 throw IllegalStateException("Too many local events in the bot script")
             }
         }
-        currentState.events.add(BotEvent(eventType))
+        val event = BotEvent(eventType)
+        currentState.events.add(event)
+
+        return DisasmDescription(
+                eventType.name,
+                "${event.botcTitle} {"
+        )
     }
 
-    private fun parseEventHandler(event: DataHeaders) {
+    private fun parseEventHandler(event: DataHeaders): DisasmDescription {
         if (currentState.global) {
             throw IllegalStateException("$event outside of a state definition")
         }
 
-        currentState.events.add(WorldEvent(event))
+        val event = WorldEvent(event)
+        currentState.events.add(event)
+
+        return DisasmDescription(
+                "",
+                event.botcTitle + " {"
+        )
     }
 
     private var alreadyParsed: Boolean = false
