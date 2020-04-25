@@ -334,7 +334,7 @@ class Decompiler {
         }
     }
 
-    fun parse(data0: UByteArray) {
+    fun parse(data0: UByteArray, disasmPrinter: Printer?) {
         if (alreadyParsed) {
             throw IllegalStateException("parse() can be called only once")
         }
@@ -342,7 +342,7 @@ class Decompiler {
 
         data = Data(data0)
 
-        parseCommands(consolePrinter)
+        parseCommands(disasmPrinter)
         normalizeStates()
     }
 
