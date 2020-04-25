@@ -12,7 +12,7 @@ import java.nio.file.Paths
 actual val lineSeparator: String = System.lineSeparator()
 
 actual fun String.Companion.format(format: String, arg: Int): String {
-    return String.format(format, arg)
+    return String.format(format, *arrayOf(arg))
 }
 
 actual fun StringBuilder.appendLine(): StringBuilder {
@@ -75,6 +75,7 @@ actual object consolePrinter: Printer {
     }
 }
 
-actual fun readAllBytes(path: String): UByteArray
-    return Files.readAllBytes(filePath).toUByteArray()
+@ExperimentalUnsignedTypes
+actual fun readAllBytes(path: String): UByteArray {
+    return Files.readAllBytes(Paths.get(path)).toUByteArray()
 }
