@@ -163,7 +163,7 @@ abstract class StackChangingNode(
 )
     : BaseNode("", outputNum), ConsumesStack {
     enum class AddsTo {
-        DONT_PUSHES_TO_STACK {
+        DOES_NOT_PUSH_TO_STACK {
             override fun asText(): String = ""
         },
         ADDS_TO_NORMAL_STACK {
@@ -313,16 +313,16 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
 class DropStackNode(override val asText: String)
     : StackChangingNode(
         listOf(createNormalStackArgument(0)),
-        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
+        arrayOf(ReturnPrototype(DOES_NOT_PUSH_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
 )
 
-open class LabelNode(byte: Int) : BaseNode("label$byte", 1)
+open class LabelNode(byte: Int) : BaseNode("label${String.format("%X", byte)}", 1)
 
 interface JumpingNode {
     var jumpTargetNode: BaseNode
 }
 
-open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label$targetByte", 2), JumpingNode {
+open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label${String.format("%X", targetByte)}", 2), JumpingNode {
     override var jumpTargetNode: BaseNode
         get() = outputs[1]
         set(value) {
