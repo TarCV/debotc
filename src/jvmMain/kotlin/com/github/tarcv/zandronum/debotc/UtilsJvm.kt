@@ -1,12 +1,19 @@
 package com.github.tarcv.zandronum.debotc
 
+import java.io.Closeable
 import java.io.File
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Paths
 
 /**
  * JVM implementations of platform-dependent helpers
  */
 actual val lineSeparator: String = System.lineSeparator()
+
+actual fun String.Companion.format(format: String, arg: Int): String {
+    return String.format(format, arg)
+}
 
 actual fun StringBuilder.appendLine(): StringBuilder {
     return this.appendln()
@@ -30,6 +37,12 @@ actual fun StringBuilder.insertString(index: Int, string: String): StringBuilder
 
 actual fun assert(value: Boolean) {
     kotlin.assert(value)
+}
+
+actual interface Printer: Closeable {
+    actual fun println(msg: String)
+    actual override fun close()
+    actual fun print(msg: String)
 }
 
 actual class FilePrinter actual constructor(path: String) : Printer {
@@ -60,4 +73,8 @@ actual object consolePrinter: Printer {
     override fun println(msg: String) {
         kotlin.io.println(msg)
     }
+}
+
+actual fun readAllBytes(path: String): UByteArray
+    return Files.readAllBytes(filePath).toUByteArray()
 }
