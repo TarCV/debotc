@@ -1,5 +1,8 @@
 package com.github.tarcv.zandronum.debotc
 
+import platform.posix.*
+import kotlinx.cinterop.*
+
 /**
  * Native implementations of platform-dependent helpers
  */
@@ -30,14 +33,19 @@ actual fun assert(value: Boolean) {
 }
 
 actual class FilePrinter actual constructor(private val path: String) : Printer {
-    private val file = fopen(args[0], "a")
+    private val file = fopen(path, "a")
 
     override fun close() {
         fclose(file)
     }
 
+    override fun print(msg: String) {
+        fputs(msg, file)
+    }
+
     override fun println(msg: String) {
-        TODO()
+        fputs(msg, file)
+        fputs(lineSeparator, file)
     }
 }
 
