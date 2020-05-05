@@ -8,13 +8,40 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - deps-v2-{{ checksum "build.gradle" }}
-            - deps-v2
+            - deps-v3-{{ checksum "build.gradle" }}
+            - deps-v3
       - run:
           name: Run Tests
           command: ./gradlew jvmTest
       - store_test_results:
           path: build/test-results/test
+      - run:
+          name: Prepare APT permissions
+          command: |
+            sudo chmod -Rv ugo+rwx /var/cache/apt
+            sudo chown -Rv $(whoami) /var/cache/apt
+      - restore_cache:
+          keys:
+            - apt-v2-
+      - run:
+          name: Install libncurses5
+          # update cache ver when changing list here
+          command: sudo apt-get install -y libncurses5
+      - run:
+          name: Cleanup cache
+          command: |
+            cd /var/cache/apt/archives/
+            for pkg in `ls *.deb | cut -d _ -f 1 | sort -u`; do
+              if [ $(ls $pkg\_* | wc -l) -gt 1 ]; then
+                files=$(ls -vr $pkg\_*)
+                rmfiles=`echo $files | cut -d " " -f 2-`
+                sudo rm -v $rmfiles
+              fi
+            done
+      - save_cache:
+          key: apt-v2-{{ .Revision }}
+          paths:
+            - "/var/cache/apt"
       - run:
           name: Build
           command: ./gradlew linuxMainBinaries
@@ -26,7 +53,7 @@ jobs:
           paths:
             - ~/.gradle
             - ~/.konan
-          key: deps-v2-{{ checksum "build.gradle" }}
+          key: deps-v3-{{ checksum "build.gradle" }}
 
   publish:
     docker:
@@ -38,7 +65,7 @@ jobs:
       - run:
           name: "Prepare for publishing"
           command: |
-            
+            echo TODO
       - run:
           name: "Publish Release on GitHub"
           command: |
@@ -56,4 +83,4 @@ workflows:
           filters:
             branches:
               only:
-                - master
+                - release
