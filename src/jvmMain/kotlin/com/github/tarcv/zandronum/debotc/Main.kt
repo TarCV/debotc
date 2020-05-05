@@ -5,8 +5,8 @@ import java.nio.file.Paths
 
 @ExperimentalUnsignedTypes
 fun main(args: Array<String>) {
-    if (args.size != 1) {
-        throw IllegalArgumentException("Only one argument - path to compiled script should be passed")
+    if (args.size != 1 && args.size != 2) {
+        throw IllegalArgumentException("Wrong arguments${System.lineSeparator()}debotc <script.o> [<script.botc>]")
     }
 
     val data = Files.readAllBytes(Paths.get(args[0]))
@@ -14,5 +14,15 @@ fun main(args: Array<String>) {
 
     val decompiler = Decompiler()
     decompiler.parse(data0)
-    decompiler.print()
+
+    val printer = if (args.size == 2) {
+        FilePrinter(args[1])
+    } else {
+        consolePrinter
+    }
+    try {
+        decompiler.print(printer)
+    } finally {
+        printer.close()
+    }
 }

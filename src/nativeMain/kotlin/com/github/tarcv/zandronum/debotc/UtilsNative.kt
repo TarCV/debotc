@@ -1,5 +1,8 @@
 package com.github.tarcv.zandronum.debotc
 
+import platform.posix.*
+import kotlinx.cinterop.*
+
 /**
  * Native implementations of platform-dependent helpers
  */
@@ -27,4 +30,35 @@ actual val lineSeparator: String  = "\n" // TODO: get system line separator
 
 actual fun assert(value: Boolean) {
     kotlin.assert(value)
+}
+
+actual class FilePrinter actual constructor(private val path: String) : Printer {
+    private val file = fopen(path, "a")
+
+    override fun close() {
+        fclose(file)
+    }
+
+    override fun print(msg: String) {
+        fputs(msg, file)
+    }
+
+    override fun println(msg: String) {
+        fputs(msg, file)
+        fputs(lineSeparator, file)
+    }
+}
+
+actual object consolePrinter: Printer {
+    override fun close() {
+        // no op
+    }
+
+    override fun print(msg: String) {
+        kotlin.io.print(msg)
+    }
+
+    override fun println(msg: String) {
+        kotlin.io.println(msg)
+    }
 }
