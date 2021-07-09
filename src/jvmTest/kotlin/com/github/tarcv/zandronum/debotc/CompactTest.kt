@@ -198,7 +198,7 @@ class CompactTest {
                     .attachNode(switchNode)
                     .attachNode(caseGotoNode2)
                     .attachNode(caseGotoNode3)
-                    .attachNode(DropStackNode("default"))
+                    .attachNode(DropStackNode())
                     .attachNode(endLabelNode)
                     .attachNode(EndNode())
 

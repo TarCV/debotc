@@ -1,5 +1,7 @@
 package com.github.tarcv.zandronum.debotc
 
+import com.github.tarcv.zandronum.debotc.BaseNode.HasNonStackDeps.NON_STACK_DEPS
+import com.github.tarcv.zandronum.debotc.BaseNode.HasNonStackDeps.SAFE_DEPS
 import com.github.tarcv.zandronum.debotc.StackChangingNode.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.AddsTo.*
 import com.github.tarcv.zandronum.debotc.StackChangingNode.ArgumentHolder.Companion.createLiteralArgument
@@ -22,6 +24,15 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 
     val inEdgeFrom = EdgesFrom()
     val outEdgeTo = EdgesTo()
+
+    /**
+     * Does it access anything besides stacks? E.g. does it change variable(s), changes or requests world state
+     */
+    enum class HasNonStackDeps {
+        SAFE_DEPS,
+        NON_STACK_DEPS
+    }
+    abstract val hasNonStackDeps: HasNonStackDeps
 
     fun addInput(node: BaseNode) {
         assert(!_inputs.contains(node) || this == nullNode || node == nullNode)
@@ -142,20 +153,36 @@ abstract class BaseNode(open val asText: String, outputNum: Int) {
 }
 
 // Hack to avoid immutability in Kotlin Native
-class NullNode: BaseNode("NULL", 0) { }
+class NullNode: BaseNode("NULL", 0) {
+    override val hasNonStackDeps = SAFE_DEPS
+}
 val nullNode = NullNode()
 
-class BeginNode: BaseNode("(BEGIN)", 1)
-class EndNode: BaseNode("(END)", 0)
+class BeginNode: BaseNode("(BEGIN)", 1) {
+    override val hasNonStackDeps = SAFE_DEPS
+}
+class EndNode: BaseNode("(END)", 0) {
+    override val hasNonStackDeps = SAFE_DEPS
+}
 
-open class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1)
+class CommandNode(asText: String): BaseNode(asText.tryAppendSemicolon(), 1) {
+    override var hasNonStackDeps = NON_STACK_DEPS
+}
 
-class TextNode(asText: String): BaseNode(asText, 1)
+class TextNode(asText: String): BaseNode(asText, 1) {
+    // hasNonStackDeps is never actually used for TextNode, so hardcode to 'true' to make it future-proof
+    override val hasNonStackDeps = NON_STACK_DEPS
+}
 
 interface ConsumesStack {
     val arguments: List<ArgumentHolder>
 }
 
+/**
+ * Node that pushes its returns to the stack.
+ * Note: such nodes are completely defined by their returnPrototypes and args,
+ *   they can't have any special asText implementations in implementing classes.
+ */
 abstract class StackChangingNode(
         override val arguments: List<ArgumentHolder>,
         private val returnPrototypes: Array<ReturnPrototype>,
@@ -194,28 +221,48 @@ abstract class StackChangingNode(
 
     fun returns(): List<Return> {
         return returnPrototypes.mapIndexed { i, it ->
-            Return(i, it.addsTo, it.returnTransform(arguments))
+            Return(i, it.addsTo, it.returnTransform(arguments), it.hasNonStackDeps)
         }
     }
 
-    class ReturnPrototype (
-        val addsTo: AddsTo,
-        val returnTransform: (arguments: List<ArgumentHolder>) -> String,
-        val consumed: Boolean = false
+    class ReturnPrototype(
+            val addsTo: AddsTo,
+            val hasNonStackDeps: HasNonStackDeps = SAFE_DEPS,
+            val consumed: Boolean = false,
+            val returnTransform: (arguments: List<ArgumentHolder>) -> String
     )
     inner class Return constructor(
             val index: Int,
             val addsTo: AddsTo,
-            val value: String
+            val value: String,
+            val hasNonStackDeps: HasNonStackDeps
     ) {
         val consumed: Boolean
             get() = isReturnConsumed(index)
     }
 
-    override val asText: String
+    final override val asText: String
         get() = returnsAsText(this)
 
     abstract class Argument
+
+    override val hasNonStackDeps: HasNonStackDeps
+        get() {
+            val unconsumedReturns = returns().filter { !it.consumed }
+            if (unconsumedReturns.isEmpty()) return SAFE_DEPS // no unconsumed returns means this node is empty and thus safe
+
+            val hasNonStackReturns = unconsumedReturns.any { it.hasNonStackDeps == NON_STACK_DEPS }
+            if (hasNonStackReturns) return NON_STACK_DEPS
+
+            val hasNonStackArgs = arguments
+                    .map { holder -> holder.argument }
+                    .any {
+                        it is LiteralArgument && it.hasNonStackDeps == NON_STACK_DEPS
+                    }
+            if (hasNonStackArgs) return NON_STACK_DEPS
+
+            return SAFE_DEPS
+        }
 
     class ArgumentHolder(
             var argument: Argument
@@ -240,6 +287,8 @@ abstract class StackChangingNode(
     interface StackArgument {
         val addsTo: AddsTo
         val depth: Int
+
+        fun withDepth(depth: Int): Argument
     }
 
     class NormalStackArgument(override val depth: Int): Argument(), StackArgument {
@@ -250,17 +299,21 @@ abstract class StackChangingNode(
         override val addsTo: AddsTo = ADDS_TO_NORMAL_STACK
 
         override fun toString(): String = "stack[$depth]"
+
+        override fun withDepth(depth: Int) = NormalStackArgument(depth)
     }
     class StringStackArgument(override val depth: Int): Argument(), StackArgument {
         init {
             assert(depth >= 0)
         }
 
+        override fun withDepth(depth: Int) = StringStackArgument(depth)
+
         override val addsTo: AddsTo = ADDS_TO_STRING_STACK
 
         override fun toString(): String = "stringStack[$depth]"
     }
-    class LiteralArgument(val value: String): Argument() {
+    class LiteralArgument(val value: String, val hasNonStackDeps: HasNonStackDeps = SAFE_DEPS): Argument() {
         override fun toString(): String = value
     }
 
@@ -272,36 +325,63 @@ abstract class StackChangingNode(
             }
             return args
         }
+
+        fun Array<AddsTo>.filterIsStackChanging(): List<AddsTo> {
+            return filter(::isStackChanging)
+        }
+
+        fun Iterable<AddsTo>.filterIsStackChanging(): List<AddsTo> {
+            return filter(::isStackChanging)
+        }
+
+        private fun isStackChanging(it: AddsTo): Boolean {
+            return when (it) {
+                DONT_PUSHES_TO_STACK -> false
+                ADDS_TO_NORMAL_STACK, ADDS_TO_STRING_STACK -> true
+            }
+        }
     }
 }
 
 class CustomStackConsumingNode(
         numArgs: Int,
         addsTo: AddsTo,
+        hasNonStackDeps: HasNonStackDeps = SAFE_DEPS,
         private val transformer: (List<ArgumentHolder>) -> String
 )
-: StackChangingNode(consumesNormalStack(numArgs), arrayOf(ReturnPrototype(addsTo, { arguments -> transformer(arguments) })))
+: StackChangingNode(consumesNormalStack(numArgs), arrayOf(ReturnPrototype(addsTo, hasNonStackDeps) { arguments -> transformer(arguments) }))
 
-open class FunctionNode(val name: String, arguments: List<ArgumentHolder>, addsTo: AddsTo)
+open class FunctionNode(
+        val name: String,
+        arguments: List<ArgumentHolder>,
+        addsTo: AddsTo,
+        hasNonStackDeps: HasNonStackDeps = SAFE_DEPS
+)
     : StackChangingNode(
         arguments,
-        arrayOf(ReturnPrototype(addsTo, { _ -> "$name(${arguments.joinToString { it.toString() }})" }))
+        arrayOf(ReturnPrototype(addsTo, hasNonStackDeps) { _ ->
+            "$name(${arguments.joinToString { it.toString() }})"
+        })
 )
 
 class OperatorNode(val name: String, numArgs: Int)
     : StackChangingNode(
         consumesNormalStack(numArgs),
         arrayOf(when (numArgs) {
-            2 -> ReturnPrototype(ADDS_TO_NORMAL_STACK, { arguments -> "(" + arguments[0] + " " + name + " " + arguments[1] + ")" })
-            1 -> ReturnPrototype(ADDS_TO_NORMAL_STACK, { arguments -> "(" + name + arguments[0] + ")" })
+            2 -> ReturnPrototype(ADDS_TO_NORMAL_STACK) { arguments -> "(" + arguments[0] + " " + name + " " + arguments[1] + ")" }
+            1 -> ReturnPrototype(ADDS_TO_NORMAL_STACK) { arguments -> "(" + name + arguments[0] + ")" }
             else -> throw AssertionError()
         })
 )
 
+/**
+ * Node containing only constants and inlined expressions to be pushed on a stack.
+ * Contents inside a literal node might be inlined or reordered
+ */
 class LiteralNode(pairs: List<Pair<String, AddsTo>>)
     : StackChangingNode(
         emptyList(),
-        pairs.map {ReturnPrototype(it.second, { _ -> it.first }, it.first == consumedMarker) }.toTypedArray()
+        pairs.map {ReturnPrototype(it.second, consumed = it.first == consumedMarker) { _ -> it.first } }.toTypedArray()
 ) {
     constructor(value: String, addsTo: AddsTo) : this(listOf(value to addsTo))
 
@@ -310,28 +390,23 @@ class LiteralNode(pairs: List<Pair<String, AddsTo>>)
     }
 }
 
-class DropStackNode(override val asText: String)
+class DropStackNode
     : StackChangingNode(
         listOf(createNormalStackArgument(0)),
-        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK, { arguments -> "// dropped '${arguments[0]}'" }))
+        arrayOf(ReturnPrototype(DONT_PUSHES_TO_STACK) { arguments -> "${arguments[0]} /* result ignored */" })
 )
 
-open class LabelNode(byte: Int) : BaseNode("label$byte", 1)
+open class LabelNode(byte: Int) : BaseNode("label$byte", 1) {
+    override val hasNonStackDeps: HasNonStackDeps = SAFE_DEPS
+}
 
 interface JumpingNode {
     var jumpTargetNode: BaseNode
 }
 
 open class AbstractGotoNode(val targetByte: Int) : BaseNode("goto label$targetByte", 2), JumpingNode {
-    override var jumpTargetNode: BaseNode
-        get() = outputs[1]
-        set(value) {
-            outputs[1] = value
-        }
-}
+    override val hasNonStackDeps: HasNonStackDeps = SAFE_DEPS
 
-class TerminatingFunctionNode(name: String, arguments: List<ArgumentHolder>, addsTo: AddsTo)
-    : FunctionNode(name, arguments, addsTo), JumpingNode {
     override var jumpTargetNode: BaseNode
         get() = outputs[1]
         set(value) {
@@ -347,6 +422,9 @@ open class IfGotoNode(val condition: ArgumentHolder, targetByte: Int)
     override val arguments: List<ArgumentHolder>
         get() = listOf(condition)
 
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = NON_STACK_DEPS
+
     override val asText: String
         get() = "if (${condition.argument}) ${super.asText}"
 }
@@ -355,6 +433,9 @@ class IfNotGotoNode(val condition: ArgumentHolder, targetByte: Int)
     : AbstractGotoNode(targetByte), ConsumesStack {
     override val arguments: List<ArgumentHolder>
         get() = listOf(condition)
+
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = NON_STACK_DEPS
 
     override val asText: String
         get() = "if (! $condition) ${super.asText}"
@@ -387,6 +468,9 @@ class FullSwitchNode(
             outputs[i] = target
         }
     }
+
+    // No need to check if it actually has such deps, so better safe than sorry
+    override val hasNonStackDeps: HasNonStackDeps = NON_STACK_DEPS
 
     override val arguments: List<ArgumentHolder>
         get() = listOf(conditionTarget)
